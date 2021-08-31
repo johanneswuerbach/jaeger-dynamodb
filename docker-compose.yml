@@ -1,0 +1,35 @@
+version: '3.7'
+
+services:
+  jaeger:
+    image: johanneswuerbach/jaeger-dynamodb
+    build: .
+    hostname: jaeger
+    environment:
+      - GRPC_STORAGE_PLUGIN_LOG_LEVEL=debug
+      - SPAN_STORAGE_TYPE=grpc-plugin
+      - GRPC_STORAGE_PLUGIN_BINARY=/go/bin/dynamodb-plugin
+      - AWS_PROFILE
+      - AWS_REGION
+    volumes:
+      - ~/.aws:/root/.aws
+    ports:
+      - "6831:6831/udp"
+      - "16686:16686"
+    networks:
+      - jaeger-example
+  hotrod:
+    image: jaegertracing/example-hotrod:latest
+    ports:
+      - "8080:8080"
+    command: ["all"]
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    networks:
+      - jaeger-example
+    depends_on:
+      - jaeger
+
+networks:
+  jaeger-example:
