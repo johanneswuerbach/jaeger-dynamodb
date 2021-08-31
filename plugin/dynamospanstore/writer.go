@@ -21,6 +21,11 @@ type Writer struct {
 	table  string
 }
 
+type SpanItemProcess struct {
+	ServiceName string
+	// Tags          []model.KeyValue
+}
+
 type SpanItem struct {
 	TraceID       string
 	SpanID        string
@@ -31,7 +36,7 @@ type SpanItem struct {
 	Duration      int64
 	// Tags          []model.KeyValue
 	// Logs          []Log
-	// Process       *Process
+	Process   *SpanItemProcess
 	ProcessID string
 	Warnings  []string
 	// XXX_NoUnkeyedLiteral struct{}
@@ -50,9 +55,16 @@ func NewSpanItemFromSpan(span *model.Span) *SpanItem {
 		Duration:  span.Duration.Nanoseconds(),
 		// Tags:          span.Tags,
 		// Logs:          span.Logs,
-		// Process:   span.Process,
+		Process:   NewSpanItemProcessFromProcess(span.Process),
 		ProcessID: span.ProcessID,
 		Warnings:  span.Warnings,
+	}
+}
+
+func NewSpanItemProcessFromProcess(process *model.Process) *SpanItemProcess {
+	return &SpanItemProcess{
+		ServiceName: process.ServiceName,
+		// Tags:          process.Tags,
 	}
 }
 

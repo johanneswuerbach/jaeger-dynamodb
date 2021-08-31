@@ -17,3 +17,6 @@ start:
 
 logs:
 	docker-compose logs -f jaeger
+
+down:
+	docker-compose down -v

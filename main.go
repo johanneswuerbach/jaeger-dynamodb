@@ -36,7 +36,7 @@ func main() {
 	flag.StringVar(&configPath, "config", "", "A path to the Humio plugin's configuration file")
 	flag.Parse()
 
-	logger.Debug("Plugin starting ...")
+	logger.Debug("plugin starting ...")
 
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
@@ -45,9 +45,14 @@ func main() {
 
 	svc := dynamodb.NewFromConfig(cfg)
 
-	logger.Debug("Plugin configured")
+	logger.Debug("plugin configured")
 
-	dynamodbPlugin := plugin.NewDynamoDBPlugin(logger, svc)
+	dynamodbPlugin, err := plugin.NewDynamoDBPlugin(logger, svc)
+	if err != nil {
+		log.Fatalf("unable to create plugin, %v", err)
+	}
+
+	logger.Debug("plugin created")
 	grpc.Serve(&shared.PluginServices{
 		Store:        dynamodbPlugin,
 		ArchiveStore: dynamodbPlugin,
