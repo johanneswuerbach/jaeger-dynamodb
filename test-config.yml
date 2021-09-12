@@ -1,0 +1,2 @@
+dynamodb:
+  endpoint: http://dynamodb:8000

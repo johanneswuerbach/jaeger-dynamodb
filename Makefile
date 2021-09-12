@@ -7,16 +7,20 @@ else
   GOARCH = $(shell go env GOARCH)
 endif
 
-
 build:
-	docker-compose build --build-arg GOARCH=$(GOARCH) jaeger
+	docker compose build --build-arg GOARCH=$(GOARCH) jaeger
 
 start:
 	echo "Open http://0.0.0.0:8080"
-	docker-compose up hotrod
+	docker compose up hotrod
 
 logs:
-	docker-compose logs -f jaeger
+	docker compose logs -f jaeger
 
 down:
-	docker-compose down -v
+	docker compose down -v
+
+test-integration:
+	docker compose build --build-arg GOARCH=$(GOARCH) test-integration
+	docker compose run --rm test-integration sh -c '$$PLUGIN_BINARY_PATH --config $$PLUGIN_CONFIG_PATH --create-tables=1 --only-create-tables=true'
+	docker compose run --rm test-integration go test -run 'TestGRPCStorage/FindTraces' -v -race ./plugin/storage/integration/...

@@ -32,7 +32,12 @@ type Writer struct {
 
 type SpanItemProcess struct {
 	ServiceName string
-	// Tags          []model.KeyValue
+	Tags        map[string]string
+}
+
+type SpanItemLog struct {
+	Fields    map[string]string
+	Timestamp int64
 }
 
 type SpanItem struct {
@@ -43,12 +48,12 @@ type SpanItem struct {
 	Flags         model.Flags
 	StartTime     int64
 	Duration      int64
-	// Tags          []model.KeyValue
-	// Logs          []Log
-	Process     *SpanItemProcess
-	ServiceName string
-	ProcessID   string
-	Warnings    []string
+	Tags          map[string]string
+	Logs          []*SpanItemLog
+	Process       *SpanItemProcess
+	ServiceName   string
+	ProcessID     string
+	Warnings      []string
 	// XXX_NoUnkeyedLiteral struct{}
 	// XXX_unrecognized     []byte
 	// XXX_sizecache        int32
@@ -60,11 +65,11 @@ func NewSpanItemFromSpan(span *model.Span) *SpanItem {
 		SpanID:        span.SpanID.String(),
 		OperationName: span.OperationName,
 		// References:    span.References,
-		Flags:     span.Flags,
-		StartTime: span.StartTime.UnixNano(),
-		Duration:  span.Duration.Nanoseconds(),
-		// Tags:          span.Tags,
-		// Logs:          span.Logs,
+		Flags:       span.Flags,
+		StartTime:   span.StartTime.UnixNano(),
+		Duration:    span.Duration.Nanoseconds(),
+		Tags:        kvToMap(span.Tags),
+		Logs:        NewSpanItemLogsFromLogs(span.Logs),
 		Process:     NewSpanItemProcessFromProcess(span.Process),
 		ServiceName: span.Process.ServiceName,
 		ProcessID:   span.ProcessID,
@@ -73,9 +78,38 @@ func NewSpanItemFromSpan(span *model.Span) *SpanItem {
 }
 
 func NewSpanItemProcessFromProcess(process *model.Process) *SpanItemProcess {
+	tags := kvToMap(process.Tags)
+
 	return &SpanItemProcess{
 		ServiceName: process.ServiceName,
-		// Tags:          process.Tags,
+		Tags:        tags,
+	}
+}
+
+func kvToMap(kvs []model.KeyValue) map[string]string {
+	kvMap := map[string]string{}
+	for _, field := range kvs {
+		kvMap[field.Key] = field.AsString()
+	}
+
+	return kvMap
+}
+
+func NewSpanItemLogsFromLogs(logs []model.Log) []*SpanItemLog {
+	spanItemLogs := []*SpanItemLog{}
+	for _, log := range logs {
+		spanItemLogs = append(spanItemLogs, NewSpanItemLogFromLog(&log))
+	}
+
+	return spanItemLogs
+}
+
+func NewSpanItemLogFromLog(log *model.Log) *SpanItemLog {
+	fields := kvToMap(log.Fields)
+
+	return &SpanItemLog{
+		Timestamp: log.Timestamp.UnixNano(),
+		Fields:    fields,
 	}
 }
 
@@ -92,12 +126,16 @@ func NewServiceItemFromSpan(span *model.Span) *ServiceItem {
 type OperationItem struct {
 	Name        string
 	ServiceName string
+	SpanKind    string
 }
 
 func NewOperationItemFromSpan(span *model.Span) *OperationItem {
+	spanKind, _ := span.GetSpanKind()
+
 	return &OperationItem{
 		Name:        span.OperationName,
 		ServiceName: span.Process.ServiceName,
+		SpanKind:    spanKind,
 	}
 }
 
@@ -123,15 +161,21 @@ func (s *Writer) writeSpanItem(ctx context.Context, span *model.Span) error {
 }
 
 func (s *Writer) writeServiceItem(ctx context.Context, span *model.Span) error {
+	if span.Process.ServiceName == "" {
+		return nil
+	}
 	return s.writeItem(ctx, NewServiceItemFromSpan(span), s.servicesTable)
 }
 
 func (s *Writer) writeOperationItem(ctx context.Context, span *model.Span) error {
+	if span.OperationName == "" {
+		return nil
+	}
 	return s.writeItem(ctx, NewOperationItemFromSpan(span), s.operationsTable)
 }
 
 func (s *Writer) WriteSpan(ctx context.Context, span *model.Span) error {
-	// s.logger.Debug("WriteSpan")
+	// s.logger.Debug("WriteSpan", span)
 
 	g, ctx := errgroup.WithContext(context.Background())
 	// TODO Writes should be batched here

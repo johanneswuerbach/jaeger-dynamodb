@@ -3,6 +3,7 @@ package dynamospanstore
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,6 +14,7 @@ import (
 	"github.com/jaegertracing/jaeger/model"
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 	"github.com/opentracing/opentracing-go"
+	"golang.org/x/sync/errgroup"
 )
 
 func NewReader(logger hclog.Logger, svc *dynamodb.Client, spansTable, servicesTable, operationsTable string) *Reader {
@@ -31,6 +33,15 @@ type Reader struct {
 	spansTable      string
 	servicesTable   string
 	operationsTable string
+}
+
+func mapToKv(kvMap map[string]string) []model.KeyValue {
+	kvs := []model.KeyValue{}
+	for key, value := range kvMap {
+		kvs = append(kvs, model.KeyValue{Key: key, VStr: value})
+	}
+
+	return kvs
 }
 
 func NewSpanFromSpanItem(spanItem *SpanItem) (*model.Span, error) {
@@ -53,21 +64,36 @@ func NewSpanFromSpanItem(spanItem *SpanItem) (*model.Span, error) {
 		Flags:      spanItem.Flags,
 		StartTime:  time.Unix(0, spanItem.StartTime),
 		Duration:   time.Duration(spanItem.Duration),
-		// TODO
-		Tags: []model.KeyValue{},
-		// TODO
-		Logs:      []model.Log{},
-		Process:   NewProcessFromSpanItemProcess(spanItem.Process),
-		ProcessID: spanItem.ProcessID,
-		Warnings:  spanItem.Warnings,
+		Tags:       mapToKv(spanItem.Tags),
+		Logs:       NewLogsFromFromSpanItemLogs(spanItem.Logs),
+		Process:    NewProcessFromSpanItemProcess(spanItem.Process),
+		ProcessID:  spanItem.ProcessID,
+		Warnings:   spanItem.Warnings,
 	}, nil
+}
+
+func NewLogsFromFromSpanItemLogs(spanItemLogs []*SpanItemLog) []model.Log {
+	logs := []model.Log{}
+	for _, spanItemLog := range spanItemLogs {
+		logs = append(logs, NewLogFromFromSpanItemLog(spanItemLog))
+	}
+
+	return logs
+}
+
+func NewLogFromFromSpanItemLog(log *SpanItemLog) model.Log {
+	fields := mapToKv(log.Fields)
+
+	return model.Log{
+		Timestamp: time.Unix(0, log.Timestamp),
+		Fields:    fields,
+	}
 }
 
 func NewProcessFromSpanItemProcess(spanItemProcess *SpanItemProcess) *model.Process {
 	return &model.Process{
 		ServiceName: spanItemProcess.ServiceName,
-		// TODO
-		Tags: []model.KeyValue{},
+		Tags:        mapToKv(spanItemProcess.Tags),
 	}
 }
 
@@ -78,7 +104,7 @@ func NewServiceFromServiceItem(serviceItem *ServiceItem) string {
 func NewOperationFromOperationItem(operationItem *OperationItem) spanstore.Operation {
 	return spanstore.Operation{
 		Name:     operationItem.Name,
-		SpanKind: "",
+		SpanKind: operationItem.SpanKind,
 	}
 }
 
@@ -121,13 +147,17 @@ func (s *Reader) getTraceByID(ctx context.Context, traceID string) (*model.Trace
 		}
 	}
 
+	if len(spans) == 0 {
+		return nil, spanstore.ErrTraceNotFound
+	}
+
 	return &model.Trace{
 		Spans: spans,
 	}, nil
 }
 
 func (s *Reader) GetTrace(ctx context.Context, traceID model.TraceID) (*model.Trace, error) {
-	s.logger.Debug("GetTrace")
+	s.logger.Trace("GetTrace", traceID.String())
 	otSpan, _ := opentracing.StartSpanFromContext(ctx, "GetTrace")
 	defer otSpan.Finish()
 
@@ -136,7 +166,7 @@ func (s *Reader) GetTrace(ctx context.Context, traceID model.TraceID) (*model.Tr
 
 // TODO beggningOfTime might not be a good idea, maybe make a system property that the image is run with?
 func (s *Reader) GetServices(ctx context.Context) ([]string, error) {
-	s.logger.Debug("GetServices")
+	s.logger.Trace("GetServices")
 	otSpan, _ := opentracing.StartSpanFromContext(ctx, "GetServices")
 	defer otSpan.Finish()
 
@@ -161,13 +191,14 @@ func (s *Reader) GetServices(ctx context.Context) ([]string, error) {
 			services = append(services, NewServiceFromServiceItem(serviceItem))
 		}
 	}
+	sort.Strings(services)
 
 	return services, nil
 }
 
 // TODO beggningOfTime might not be a good idea, maybe make a system property that the image is run with?
 func (s *Reader) GetOperations(ctx context.Context, query spanstore.OperationQueryParameters) ([]spanstore.Operation, error) {
-	s.logger.Debug("GetOperations", query)
+	s.logger.Trace("GetOperations", query)
 	span, _ := opentracing.StartSpanFromContext(ctx, "GetOperations")
 	defer span.Finish()
 
@@ -176,11 +207,12 @@ func (s *Reader) GetOperations(ctx context.Context, query spanstore.OperationQue
 	}
 
 	keyCond := expression.Key("ServiceName").Equal(expression.Value(query.ServiceName))
-
-	// TODO support
-	// SpanKind    string
-
 	builder := expression.NewBuilder().WithKeyCondition(keyCond)
+
+	if query.SpanKind != "" {
+		builder = builder.WithFilter(expression.Name("SpanKind").Equal(expression.Value(query.SpanKind)))
+	}
+
 	expr, err := builder.Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build query expression, %v", err)
@@ -220,7 +252,7 @@ type TraceIDResult struct {
 }
 
 func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryParameters) ([]*model.Trace, error) {
-	s.logger.Debug("FindTraces", query)
+	s.logger.Trace("FindTraces", query)
 	span, _ := opentracing.StartSpanFromContext(ctx, "FindTraces")
 	defer span.Finish()
 
@@ -250,6 +282,10 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 		expressions = append(expressions, expression.Name("Duration").LessThanEqual(expression.Value(query.DurationMax.Nanoseconds())))
 	}
 
+	for key, value := range query.Tags {
+		expressions = append(expressions, expression.Name(fmt.Sprintf("Tags.%s", key)).Equal(expression.Value(value)))
+	}
+
 	if len(expressions) > 0 {
 		if len(expressions) == 1 {
 			builder = builder.WithFilter(expressions[0])
@@ -260,17 +296,12 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 
 	builder = builder.WithProjection(expression.NamesList(expression.Name("TraceID")))
 
-	// TODO support
-	// Tags          map[string]string
-	// NumTraces     int
-
 	expr, err := builder.Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build query expression, %v", err)
 	}
 
-	// Pagination, but skip after NumTraces
-	output, err := s.svc.Query(ctx, &dynamodb.QueryInput{
+	paginator := dynamodb.NewQueryPaginator(s.svc, &dynamodb.QueryInput{
 		KeyConditionExpression:    expr.KeyCondition(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
@@ -279,31 +310,49 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 		TableName:                 &s.spansTable,
 		IndexName:                 aws.String("ServiceNameIndex"),
 	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to query, %v", err)
-	}
 
 	// TODO Make this more efficient
-	var traceIDResults []TraceIDResult
-	if err := attributevalue.UnmarshalListOfMaps(output.Items, &traceIDResults); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal items, %v", err)
-	}
 	traceIDMap := make(map[string]struct{})
-	for _, item := range traceIDResults {
-		traceIDMap[item.TraceID] = struct{}{}
+	for len(traceIDMap) < query.NumTraces && paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query page, %v", err)
+		}
+
+		var traceIDResults []TraceIDResult
+		if err := attributevalue.UnmarshalListOfMaps(output.Items, &traceIDResults); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal items, %v", err)
+		}
+		for _, item := range traceIDResults {
+			traceIDMap[item.TraceID] = struct{}{}
+		}
 	}
+
 	traceIDs := []string{}
 	for k, _ := range traceIDMap {
 		traceIDs = append(traceIDs, k)
 	}
 
-	// TODO Fetch trace spans in parallel
-	traces := []*model.Trace{}
+	tracesChan := make(chan *model.Trace, len(traceIDs))
+	g, ctx := errgroup.WithContext(ctx)
 	for _, traceID := range traceIDs {
-		trace, err := s.getTraceByID(ctx, traceID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch trace %s, %v", traceID, err)
-		}
+		traceID := traceID
+		g.Go(func() error {
+			trace, err := s.getTraceByID(ctx, traceID)
+			if err != nil {
+				return fmt.Errorf("failed to fetch trace %s, %v", traceID, err)
+			}
+			tracesChan <- trace
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to fetch traces, %v", err)
+	}
+	close(tracesChan)
+
+	traces := []*model.Trace{}
+	for trace := range tracesChan {
 		traces = append(traces, trace)
 	}
 
@@ -312,7 +361,7 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 
 // This method is not used
 func (s *Reader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQueryParameters) ([]model.TraceID, error) {
-	s.logger.Debug("FindTraceIDs", query)
+	s.logger.Trace("FindTraceIDs", query)
 	span, _ := opentracing.StartSpanFromContext(ctx, "FindTraceIDs")
 	defer span.Finish()
 

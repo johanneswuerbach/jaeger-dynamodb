@@ -16,6 +16,7 @@ services:
     ports:
       - "6831:6831/udp"
       - "16686:16686"
+
   hotrod:
     image: jaegertracing/example-hotrod:latest
     ports:
@@ -26,3 +27,29 @@ services:
       - JAEGER_AGENT_PORT=6831
     depends_on:
       - jaeger
+
+  dynamodb:
+    image: amazon/dynamodb-local
+    ports:
+      - "8000:8000"
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb"]
+
+  test-integration:
+    build:
+      context: .
+      target: integration
+    depends_on:
+      - dynamodb
+    environment:
+      - GRPC_STORAGE_PLUGIN_LOG_LEVEL=debug
+      - PLUGIN_BINARY_PATH=/go/bin/dynamodb-plugin
+      - PLUGIN_CONFIG_PATH=/test-config.yml
+      - STORAGE=grpc-plugin
+    volumes:
+      - int-mod-cache:/go/pkg/mod
+      - int-build-cache:/root/.cache/go-build
+      - ./test-config.yml:/test-config.yml
+
+volumes:
+  int-mod-cache:
+  int-build-cache:
