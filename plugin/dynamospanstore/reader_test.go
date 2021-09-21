@@ -2,7 +2,6 @@ package dynamospanstore
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -107,6 +106,69 @@ func TestGetServices(t *testing.T) {
 	assert.ElementsMatch(serviceNames, []string{"example-service-1"})
 }
 
+func TestGetOperations(t *testing.T) {
+	assert := assert.New(t)
+
+	logLevel := os.Getenv("GRPC_STORAGE_PLUGIN_LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = hclog.Warn.String()
+	}
+
+	logger := hclog.New(&hclog.LoggerOptions{
+		Level:      hclog.LevelFromString(logLevel),
+		Name:       loggerName,
+		JSONFormat: true,
+	})
+
+	ctx := context.TODO()
+
+	var (
+		spansTable      = "jaeger.spans"
+		servicesTable   = "jaeger.services"
+		operationsTable = "jaeger.operations"
+	)
+
+	svc := createDynamoDBSvc(assert, ctx)
+	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
+	writer := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+
+	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
+		SpansTable:      spansTable,
+		ServicesTable:   servicesTable,
+		OperationsTable: operationsTable,
+	}))
+
+	var span model.Span
+	assert.NoError(jsonpb.Unmarshal(strings.NewReader(`{
+		"traceId": "AAAAAAAAAAAAAAAAAAAAEQ==",
+		"spanId": "AAAAAAAAAAM=",
+		"operationName": "example-operation-1",
+		"references": [],
+		"startTime": "2017-01-26T16:46:31.639875Z",
+		"duration": "100000ns",
+		"tags": [],
+		"process": {
+			"serviceName": "example-service-1",
+			"tags": []
+		},
+		"logs": [
+			{
+				"timestamp": "2017-01-26T16:46:31.639875Z",
+				"fields": []
+			},
+			{
+				"timestamp": "2017-01-26T16:46:31.639875Z",
+				"fields": []
+			}
+		]
+	}`), &span))
+	assert.NoError(writer.WriteSpan(ctx, &span))
+
+	operations, err := reader.GetOperations(ctx, spanstore.OperationQueryParameters{ServiceName: "example-service-1"})
+	assert.NoError(err)
+	assert.ElementsMatch(operations, []spanstore.Operation{{Name: "example-operation-1"}})
+}
+
 func TestFindTraces(t *testing.T) {
 	assert := assert.New(t)
 
@@ -123,32 +185,97 @@ func TestFindTraces(t *testing.T) {
 
 	ctx := context.TODO()
 
-	svc := createDynamoDBSvc(assert, ctx)
-
 	var (
 		spansTable      = "jaeger.spans"
 		servicesTable   = "jaeger.services"
 		operationsTable = "jaeger.operations"
 	)
 
+	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
+	writer := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 
-	startTimeMax := parseTime(t, "2021-09-06T21:51:20.839Z")
-	startTimeMin := parseTime(t, "2021-09-06T20:51:20.839Z")
+	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
+		SpansTable:      spansTable,
+		ServicesTable:   servicesTable,
+		OperationsTable: operationsTable,
+	}))
+
+	var span model.Span
+	assert.NoError(jsonpb.Unmarshal(strings.NewReader(`{
+		"traceId": "AAAAAAAAAAAAAAAAAAAAEg==",
+		"spanId": "AAAAAAAAAAQ=",
+		"operationName": "query12-operation",
+		"references": [
+			{
+				"refType": "CHILD_OF",
+				"traceId": "AAAAAAAAAAAAAAAAAAAA/w==",
+				"spanId": "AAAAAAAAAP8="
+			},
+			{
+				"refType": "CHILD_OF",
+				"traceId": "AAAAAAAAAAAAAAAAAAAAAQ==",
+				"spanId": "AAAAAAAAAAI="
+			},
+			{
+				"refType": "FOLLOWS_FROM",
+				"traceId": "AAAAAAAAAAAAAAAAAAAAAQ==",
+				"spanId": "AAAAAAAAAAI="
+			}
+		],
+		"tags": [
+			{
+				"key": "sameplacetag1",
+				"vType": "STRING",
+				"vStr": "sameplacevalue"
+			},
+			{
+				"key": "sameplacetag2",
+				"vType": "INT64",
+				"vInt64": 123
+			},
+			{
+				"key": "sameplacetag4",
+				"vType": "BOOL",
+				"vBool": true
+			},
+			{
+				"key": "sameplacetag3",
+				"vType": "FLOAT64",
+				"vFloat64": 72.5
+			},
+			{
+				"key": "blob",
+				"vType": "BINARY",
+				"vBinary": "AAAwOQ=="
+			}
+		],
+		"startTime": "2017-01-26T16:46:31.639875Z",
+		"duration": "2000ns",
+		"process": {
+			"serviceName": "query12-service",
+			"tags": []
+		},
+		"logs": []
+	}`), &span))
+	assert.NoError(writer.WriteSpan(ctx, &span))
+
+	startTimeMax := parseTime(t, "2017-01-26T16:50:31.639875Z")
+	startTimeMin := parseTime(t, "2017-01-26T16:40:31.639875Z")
 
 	traces, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
-		ServiceName:  "frontend",
+		ServiceName:  "query12-service",
 		StartTimeMin: startTimeMin,
 		StartTimeMax: startTimeMax,
 		NumTraces:    20,
-		// Tags: map[string]string{
-		// 	"driver": "T707765C",
-		// },
+		Tags: map[string]string{
+			"sameplacetag1": "sameplacevalue",
+		},
 	})
 	if err != nil {
 		t.Fatalf("failed to FindTraces, %v", err)
 	}
-	fmt.Println(traces)
+	assert.Len(traces, 1)
 }
 
 func parseTime(t *testing.T, timeStr string) time.Time {

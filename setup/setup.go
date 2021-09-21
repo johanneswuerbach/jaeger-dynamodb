@@ -74,7 +74,7 @@ func ensureSpansTable(ctx context.Context, svc *dynamodb.Client, tableName strin
 				},
 				Projection: &types.Projection{
 					ProjectionType:   types.ProjectionTypeInclude,
-					NonKeyAttributes: []string{"OperationName", "Duration", "Tags"},
+					NonKeyAttributes: []string{"OperationName", "Duration", "SearchableTags"},
 				},
 			},
 		},

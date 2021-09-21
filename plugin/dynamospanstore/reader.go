@@ -64,7 +64,7 @@ func NewSpanFromSpanItem(spanItem *SpanItem) (*model.Span, error) {
 		Flags:      spanItem.Flags,
 		StartTime:  time.Unix(0, spanItem.StartTime),
 		Duration:   time.Duration(spanItem.Duration),
-		Tags:       mapToKv(spanItem.Tags),
+		Tags:       spanItem.Tags,
 		Logs:       NewLogsFromFromSpanItemLogs(spanItem.Logs),
 		Process:    NewProcessFromSpanItemProcess(spanItem.Process),
 		ProcessID:  spanItem.ProcessID,
@@ -93,7 +93,7 @@ func NewLogFromFromSpanItemLog(log *SpanItemLog) model.Log {
 func NewProcessFromSpanItemProcess(spanItemProcess *SpanItemProcess) *model.Process {
 	return &model.Process{
 		ServiceName: spanItemProcess.ServiceName,
-		Tags:        mapToKv(spanItemProcess.Tags),
+		Tags:        spanItemProcess.Tags,
 	}
 }
 
@@ -283,7 +283,7 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 	}
 
 	for key, value := range query.Tags {
-		expressions = append(expressions, expression.Name(fmt.Sprintf("Tags.%s", key)).Equal(expression.Value(value)))
+		expressions = append(expressions, expression.Name(fmt.Sprintf("SearchableTags.%s", key)).Equal(expression.Value(value)))
 	}
 
 	if len(expressions) > 0 {

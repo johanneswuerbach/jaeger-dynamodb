@@ -32,7 +32,7 @@ type Writer struct {
 
 type SpanItemProcess struct {
 	ServiceName string
-	Tags        map[string]string
+	Tags        []model.KeyValue
 }
 
 type SpanItemLog struct {
@@ -41,48 +41,50 @@ type SpanItemLog struct {
 }
 
 type SpanItem struct {
-	TraceID       string
-	SpanID        string
-	OperationName string
-	References    []string
-	Flags         model.Flags
-	StartTime     int64
-	Duration      int64
-	Tags          map[string]string
-	Logs          []*SpanItemLog
-	Process       *SpanItemProcess
-	ServiceName   string
-	ProcessID     string
-	Warnings      []string
+	TraceID        string
+	SpanID         string
+	OperationName  string
+	References     []string
+	Flags          model.Flags
+	StartTime      int64
+	Duration       int64
+	Tags           []model.KeyValue
+	SearchableTags map[string]string
+	Logs           []*SpanItemLog
+	Process        *SpanItemProcess
+	ServiceName    string
+	ProcessID      string
+	Warnings       []string
 	// XXX_NoUnkeyedLiteral struct{}
 	// XXX_unrecognized     []byte
 	// XXX_sizecache        int32
 }
 
 func NewSpanItemFromSpan(span *model.Span) *SpanItem {
+	searchableTags := append([]model.KeyValue{}, span.Tags...)
+	searchableTags = append(searchableTags, span.Process.Tags...)
 	return &SpanItem{
 		TraceID:       span.TraceID.String(),
 		SpanID:        span.SpanID.String(),
 		OperationName: span.OperationName,
 		// References:    span.References,
-		Flags:       span.Flags,
-		StartTime:   span.StartTime.UnixNano(),
-		Duration:    span.Duration.Nanoseconds(),
-		Tags:        kvToMap(span.Tags),
-		Logs:        NewSpanItemLogsFromLogs(span.Logs),
-		Process:     NewSpanItemProcessFromProcess(span.Process),
-		ServiceName: span.Process.ServiceName,
-		ProcessID:   span.ProcessID,
-		Warnings:    span.Warnings,
+		Flags:          span.Flags,
+		StartTime:      span.StartTime.UnixNano(),
+		Duration:       span.Duration.Nanoseconds(),
+		Tags:           span.Tags,
+		SearchableTags: kvToMap(searchableTags),
+		Logs:           NewSpanItemLogsFromLogs(span.Logs),
+		Process:        NewSpanItemProcessFromProcess(span.Process),
+		ServiceName:    span.Process.ServiceName,
+		ProcessID:      span.ProcessID,
+		Warnings:       span.Warnings,
 	}
 }
 
 func NewSpanItemProcessFromProcess(process *model.Process) *SpanItemProcess {
-	tags := kvToMap(process.Tags)
-
 	return &SpanItemProcess{
 		ServiceName: process.ServiceName,
-		Tags:        tags,
+		Tags:        process.Tags,
 	}
 }
 
