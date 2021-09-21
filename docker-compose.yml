@@ -34,6 +34,18 @@ services:
       - "8000:8000"
     command: ["-jar", "DynamoDBLocal.jar", "-sharedDb"]
 
+  test:
+    build:
+      context: .
+      target: test
+    environment:
+      - DYNAMODB_URL=http://dynamodb:8000
+    depends_on:
+      - dynamodb
+    volumes:
+      - int-mod-cache:/go/pkg/mod
+      - int-build-cache:/root/.cache/go-build
+
   test-integration:
     build:
       context: .

@@ -3,7 +3,6 @@ package dynamospanstore
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -25,6 +24,26 @@ const (
 	loggerName = "jaeger-dynamodb"
 )
 
+func createDynamoDBSvc(assert *assert.Assertions, ctx context.Context) *dynamodb.Client {
+	dynamodbURL := os.Getenv("DYNAMODB_URL")
+	if dynamodbURL == "" {
+		dynamodbURL = "http://localhost:8000"
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx, func(lo *config.LoadOptions) error {
+		lo.Credentials = credentials.NewStaticCredentialsProvider("TEST_ONLY", "TEST_ONLY", "TEST_ONLY")
+		lo.Region = "us-east-1"
+		lo.EndpointResolver = aws.EndpointResolverFunc(
+			func(service, region string) (aws.Endpoint, error) {
+				return aws.Endpoint{URL: dynamodbURL, Source: aws.EndpointSourceCustom}, nil
+			})
+		return nil
+	})
+	assert.NoError(err)
+
+	return dynamodb.NewFromConfig(cfg)
+}
+
 func TestGetServices(t *testing.T) {
 	assert := assert.New(t)
 
@@ -41,24 +60,13 @@ func TestGetServices(t *testing.T) {
 
 	ctx := context.TODO()
 
-	cfg, err := config.LoadDefaultConfig(ctx, func(lo *config.LoadOptions) error {
-		lo.Credentials = credentials.NewStaticCredentialsProvider("TEST_ONLY", "TEST_ONLY", "TEST_ONLY")
-		lo.Region = "us-east-1"
-		lo.EndpointResolver = aws.EndpointResolverFunc(
-			func(service, region string) (aws.Endpoint, error) {
-				return aws.Endpoint{URL: "http://localhost:8000", Source: aws.EndpointSourceCustom}, nil
-			})
-		return nil
-	})
-	assert.NoError(err)
-
 	var (
 		spansTable      = "jaeger.spans"
 		servicesTable   = "jaeger.services"
 		operationsTable = "jaeger.operations"
 	)
 
-	svc := dynamodb.NewFromConfig(cfg)
+	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
 	writer := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 
@@ -100,6 +108,8 @@ func TestGetServices(t *testing.T) {
 }
 
 func TestFindTraces(t *testing.T) {
+	assert := assert.New(t)
+
 	logLevel := os.Getenv("GRPC_STORAGE_PLUGIN_LOG_LEVEL")
 	if logLevel == "" {
 		logLevel = hclog.Warn.String()
@@ -113,10 +123,7 @@ func TestFindTraces(t *testing.T) {
 
 	ctx := context.TODO()
 
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithClientLogMode(aws.LogRetries|aws.LogRequestWithBody|aws.LogResponseWithBody))
-	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
-	}
+	svc := createDynamoDBSvc(assert, ctx)
 
 	var (
 		spansTable      = "jaeger.spans"
@@ -124,7 +131,6 @@ func TestFindTraces(t *testing.T) {
 		operationsTable = "jaeger.operations"
 	)
 
-	svc := dynamodb.NewFromConfig(cfg)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
 
 	startTimeMax := parseTime(t, "2021-09-06T21:51:20.839Z")

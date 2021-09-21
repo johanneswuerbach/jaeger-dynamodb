@@ -20,6 +20,11 @@ logs:
 down:
 	docker compose down -v
 
+.PHONY: test
+test:
+	docker compose build --build-arg GOARCH=$(GOARCH) test
+	docker compose run --rm test go test -v ./...
+
 test-integration:
 	docker compose build --build-arg GOARCH=$(GOARCH) test-integration
 	docker compose run --rm test-integration sh -c '$$PLUGIN_BINARY_PATH --config $$PLUGIN_CONFIG_PATH --create-tables=1 --only-create-tables=true'
