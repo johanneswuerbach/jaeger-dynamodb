@@ -55,20 +55,24 @@ func NewSpanFromSpanItem(spanItem *SpanItem) (*model.Span, error) {
 		return nil, fmt.Errorf("failed to get span id from string, %v", err)
 	}
 
+	references, err := NewReferencesFromFromSpanItemReferences(spanItem.References)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get convert references, %v", err)
+	}
+
 	return &model.Span{
 		TraceID:       traceID,
 		SpanID:        spanID,
 		OperationName: spanItem.OperationName,
-		// TODO
-		References: []model.SpanRef{},
-		Flags:      spanItem.Flags,
-		StartTime:  time.Unix(0, spanItem.StartTime),
-		Duration:   time.Duration(spanItem.Duration),
-		Tags:       spanItem.Tags,
-		Logs:       NewLogsFromFromSpanItemLogs(spanItem.Logs),
-		Process:    NewProcessFromSpanItemProcess(spanItem.Process),
-		ProcessID:  spanItem.ProcessID,
-		Warnings:   spanItem.Warnings,
+		References:    references,
+		Flags:         spanItem.Flags,
+		StartTime:     time.Unix(0, spanItem.StartTime),
+		Duration:      time.Duration(spanItem.Duration),
+		Tags:          spanItem.Tags,
+		Logs:          NewLogsFromFromSpanItemLogs(spanItem.Logs),
+		Process:       NewProcessFromSpanItemProcess(spanItem.Process),
+		ProcessID:     spanItem.ProcessID,
+		Warnings:      spanItem.Warnings,
 	}, nil
 }
 
@@ -82,12 +86,41 @@ func NewLogsFromFromSpanItemLogs(spanItemLogs []*SpanItemLog) []model.Log {
 }
 
 func NewLogFromFromSpanItemLog(log *SpanItemLog) model.Log {
-	fields := mapToKv(log.Fields)
-
 	return model.Log{
 		Timestamp: time.Unix(0, log.Timestamp),
-		Fields:    fields,
+		Fields:    log.Fields,
 	}
+}
+
+func NewReferencesFromFromSpanItemReferences(spanItemReferences []*SpanItemReference) ([]model.SpanRef, error) {
+	references := []model.SpanRef{}
+	for _, spanItemReference := range spanItemReferences {
+		reference, err := NewReferenceFromFromSpanItemReference(spanItemReference)
+		if err != nil {
+			return nil, err
+		}
+		references = append(references, *reference)
+	}
+
+	return references, nil
+}
+
+func NewReferenceFromFromSpanItemReference(spanItemReference *SpanItemReference) (*model.SpanRef, error) {
+	traceID, err := model.TraceIDFromString(spanItemReference.TraceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trace id from string, %v", err)
+	}
+
+	spanID, err := model.SpanIDFromString(spanItemReference.SpanID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get span id from string, %v", err)
+	}
+
+	return &model.SpanRef{
+		TraceID: traceID,
+		SpanID:  spanID,
+		RefType: spanItemReference.RefType,
+	}, nil
 }
 
 func NewProcessFromSpanItemProcess(spanItemProcess *SpanItemProcess) *model.Process {
@@ -329,7 +362,7 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 	}
 
 	traceIDs := []string{}
-	for k, _ := range traceIDMap {
+	for k := range traceIDMap {
 		traceIDs = append(traceIDs, k)
 	}
 

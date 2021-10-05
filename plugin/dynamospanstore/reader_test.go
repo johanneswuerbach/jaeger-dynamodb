@@ -169,6 +169,70 @@ func TestGetOperations(t *testing.T) {
 	assert.ElementsMatch(operations, []spanstore.Operation{{Name: "example-operation-1"}})
 }
 
+const inputWithTraceTag = `{
+	"traceId": "AAAAAAAAAAAAAAAAAAAAEg==",
+	"spanId": "AAAAAAAAAAQ=",
+	"operationName": "query12-operation",
+	"references": [],
+	"tags": [
+		{
+			"key": "sameplacetag1",
+			"vType": "STRING",
+			"vStr": "sameplacevalue"
+		}
+	],
+	"startTime": "2017-01-26T16:46:31.639875Z",
+	"duration": "2000ns",
+	"process": {
+		"serviceName": "query12-service",
+		"tags": []
+	},
+	"logs": []
+}`
+
+const inputWithLogTag = `{
+	"traceId": "AAAAAAAAAAAAAAAAAAAAEg==",
+	"spanId": "AAAAAAAAAAQ=",
+	"operationName": "query12-operation",
+	"references": [],
+	"tags": [],
+	"startTime": "2017-01-26T16:46:31.639875Z",
+	"duration": "2000ns",
+	"process": {
+		"serviceName": "query12-service",
+		"tags": []
+	},
+	"logs": [{
+		"timestamp": "2017-01-26T16:46:31.639875Z",
+		"fields": [
+			{
+				"key": "sameplacetag1",
+				"vType": "STRING",
+				"vStr": "sameplacevalue"
+			}
+		]
+	}]
+}`
+
+const inputWithProcessTag = `{
+	"traceId": "AAAAAAAAAAAAAAAAAAAAEg==",
+	"spanId": "AAAAAAAAAAQ=",
+	"operationName": "query12-operation",
+	"references": [],
+	"tags": [],
+	"startTime": "2017-01-26T16:46:31.639875Z",
+	"duration": "2000ns",
+	"process": {
+		"serviceName": "query12-service",
+		"tags": [{
+			"key": "sameplacetag1",
+			"vType": "STRING",
+			"vStr": "sameplacevalue"
+		}]
+	},
+	"logs": []
+}`
+
 func TestFindTraces(t *testing.T) {
 	assert := assert.New(t)
 
@@ -201,81 +265,38 @@ func TestFindTraces(t *testing.T) {
 		OperationsTable: operationsTable,
 	}))
 
-	var span model.Span
-	assert.NoError(jsonpb.Unmarshal(strings.NewReader(`{
-		"traceId": "AAAAAAAAAAAAAAAAAAAAEg==",
-		"spanId": "AAAAAAAAAAQ=",
-		"operationName": "query12-operation",
-		"references": [
-			{
-				"refType": "CHILD_OF",
-				"traceId": "AAAAAAAAAAAAAAAAAAAA/w==",
-				"spanId": "AAAAAAAAAP8="
-			},
-			{
-				"refType": "CHILD_OF",
-				"traceId": "AAAAAAAAAAAAAAAAAAAAAQ==",
-				"spanId": "AAAAAAAAAAI="
-			},
-			{
-				"refType": "FOLLOWS_FROM",
-				"traceId": "AAAAAAAAAAAAAAAAAAAAAQ==",
-				"spanId": "AAAAAAAAAAI="
-			}
-		],
-		"tags": [
-			{
-				"key": "sameplacetag1",
-				"vType": "STRING",
-				"vStr": "sameplacevalue"
-			},
-			{
-				"key": "sameplacetag2",
-				"vType": "INT64",
-				"vInt64": 123
-			},
-			{
-				"key": "sameplacetag4",
-				"vType": "BOOL",
-				"vBool": true
-			},
-			{
-				"key": "sameplacetag3",
-				"vType": "FLOAT64",
-				"vFloat64": 72.5
-			},
-			{
-				"key": "blob",
-				"vType": "BINARY",
-				"vBinary": "AAAwOQ=="
-			}
-		],
-		"startTime": "2017-01-26T16:46:31.639875Z",
-		"duration": "2000ns",
-		"process": {
-			"serviceName": "query12-service",
-			"tags": []
-		},
-		"logs": []
-	}`), &span))
-	assert.NoError(writer.WriteSpan(ctx, &span))
-
 	startTimeMax := parseTime(t, "2017-01-26T16:50:31.639875Z")
 	startTimeMin := parseTime(t, "2017-01-26T16:40:31.639875Z")
 
-	traces, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
-		ServiceName:  "query12-service",
-		StartTimeMin: startTimeMin,
-		StartTimeMax: startTimeMax,
-		NumTraces:    20,
-		Tags: map[string]string{
-			"sameplacetag1": "sameplacevalue",
-		},
-	})
-	if err != nil {
-		t.Fatalf("failed to FindTraces, %v", err)
+	type test struct {
+		input string
 	}
-	assert.Len(traces, 1)
+
+	tests := []test{
+		{input: inputWithTraceTag},
+		{input: inputWithLogTag},
+		{input: inputWithProcessTag},
+	}
+
+	for _, tc := range tests {
+		var span model.Span
+		assert.NoError(jsonpb.Unmarshal(strings.NewReader(tc.input), &span))
+		assert.NoError(writer.WriteSpan(ctx, &span))
+		traces, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
+			ServiceName:  "query12-service",
+			StartTimeMin: startTimeMin,
+			StartTimeMax: startTimeMax,
+			NumTraces:    20,
+			Tags: map[string]string{
+				"sameplacetag1": "sameplacevalue",
+			},
+		})
+		if err != nil {
+			t.Fatalf("failed to FindTraces, %v", err)
+		}
+		assert.Len(traces, 1)
+	}
+
 }
 
 func parseTime(t *testing.T, timeStr string) time.Time {

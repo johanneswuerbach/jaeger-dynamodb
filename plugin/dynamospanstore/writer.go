@@ -36,15 +36,21 @@ type SpanItemProcess struct {
 }
 
 type SpanItemLog struct {
-	Fields    map[string]string
+	Fields    []model.KeyValue
 	Timestamp int64
+}
+
+type SpanItemReference struct {
+	TraceID string
+	SpanID  string
+	RefType model.SpanRefType
 }
 
 type SpanItem struct {
 	TraceID        string
 	SpanID         string
 	OperationName  string
-	References     []string
+	References     []*SpanItemReference
 	Flags          model.Flags
 	StartTime      int64
 	Duration       int64
@@ -63,11 +69,15 @@ type SpanItem struct {
 func NewSpanItemFromSpan(span *model.Span) *SpanItem {
 	searchableTags := append([]model.KeyValue{}, span.Tags...)
 	searchableTags = append(searchableTags, span.Process.Tags...)
+	for _, log := range span.Logs {
+		searchableTags = append(searchableTags, log.Fields...)
+	}
+
 	return &SpanItem{
-		TraceID:       span.TraceID.String(),
-		SpanID:        span.SpanID.String(),
-		OperationName: span.OperationName,
-		// References:    span.References,
+		TraceID:        span.TraceID.String(),
+		SpanID:         span.SpanID.String(),
+		OperationName:  span.OperationName,
+		References:     NewSpanItemReferencesFromReferences(span.References),
 		Flags:          span.Flags,
 		StartTime:      span.StartTime.UnixNano(),
 		Duration:       span.Duration.Nanoseconds(),
@@ -107,11 +117,26 @@ func NewSpanItemLogsFromLogs(logs []model.Log) []*SpanItemLog {
 }
 
 func NewSpanItemLogFromLog(log *model.Log) *SpanItemLog {
-	fields := kvToMap(log.Fields)
-
 	return &SpanItemLog{
 		Timestamp: log.Timestamp.UnixNano(),
-		Fields:    fields,
+		Fields:    log.Fields,
+	}
+}
+
+func NewSpanItemReferencesFromReferences(references []model.SpanRef) []*SpanItemReference {
+	spanItemReferences := []*SpanItemReference{}
+	for _, reference := range references {
+		spanItemReferences = append(spanItemReferences, NewSpanItemReferenceFromReference(reference))
+	}
+
+	return spanItemReferences
+}
+
+func NewSpanItemReferenceFromReference(reference model.SpanRef) *SpanItemReference {
+	return &SpanItemReference{
+		TraceID: reference.TraceID.String(),
+		SpanID:  reference.SpanID.String(),
+		RefType: reference.RefType,
 	}
 }
 
