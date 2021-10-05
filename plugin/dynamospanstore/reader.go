@@ -35,15 +35,6 @@ type Reader struct {
 	operationsTable string
 }
 
-func mapToKv(kvMap map[string]string) []model.KeyValue {
-	kvs := []model.KeyValue{}
-	for key, value := range kvMap {
-		kvs = append(kvs, model.KeyValue{Key: key, VStr: value})
-	}
-
-	return kvs
-}
-
 func NewSpanFromSpanItem(spanItem *SpanItem) (*model.Span, error) {
 	traceID, err := model.TraceIDFromString(spanItem.TraceID)
 	if err != nil {

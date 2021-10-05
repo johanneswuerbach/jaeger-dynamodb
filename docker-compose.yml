@@ -46,10 +46,10 @@ services:
       - int-mod-cache:/go/pkg/mod
       - int-build-cache:/root/.cache/go-build
 
-  test-integration:
+  test-jaeger-grpc-integration:
     build:
       context: .
-      target: integration
+      target: jaeger-grpc-integration
     depends_on:
       - dynamodb
     environment:

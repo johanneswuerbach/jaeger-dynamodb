@@ -46,7 +46,9 @@ func main() {
 	pflag.Bool("create-tables", false, "(Re)create dynamodb table")
 	pflag.Bool("only-create-tables", false, "Exit after creating dynamodb tables")
 	pflag.Parse()
-	viper.BindPFlags(pflag.CommandLine)
+	if err := viper.BindPFlags(pflag.CommandLine); err != nil {
+		log.Fatalf("unable bind flags, %v", err)
+	}
 
 	if configPath != "" {
 		viper.SetConfigFile(configPath)
