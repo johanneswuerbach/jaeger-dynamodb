@@ -41,6 +41,7 @@ test: ## Run jaeger plugin tests
 	docker compose run --rm test go test -v ./...
 
 test-jaeger-grpc-integration: ## Run jaeger integration tests for grpc plugins
+	docker compose up -d dynamodb
 	docker compose build --build-arg GOARCH=$(GOARCH) test-jaeger-grpc-integration
 	docker compose run --rm test-jaeger-grpc-integration sh -c '$$PLUGIN_BINARY_PATH --config $$PLUGIN_CONFIG_PATH --create-tables=1 --only-create-tables=true'
 	docker compose run --rm test-jaeger-grpc-integration go test -run 'TestGRPCStorage/FindTraces' -v -race ./plugin/storage/integration/...
