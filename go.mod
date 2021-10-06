@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.5.1
 	github.com/gogo/protobuf v1.3.2
 	github.com/hashicorp/go-hclog v0.16.2
-	github.com/jaegertracing/jaeger v1.26.0
+	github.com/jaegertracing/jaeger v1.27.0
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/ory/viper v1.7.5
 	github.com/spf13/pflag v1.0.5
@@ -62,6 +62,7 @@ require (
 	github.com/spf13/viper v1.9.0 // indirect
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
+	github.com/uber/jaeger-client-go v2.29.1+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	github.com/vektra/mockery v1.1.2 // indirect
 	github.com/wadey/gocovmerge v0.0.0-20160331181800-b5bfa59ec0ad // indirect
