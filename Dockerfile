@@ -22,4 +22,4 @@ COPY --from=build /src/dynamodb-plugin /go/bin
 
 FROM scratch
 
-COPY --from=build /src/dynamodb-plugin /dynamodb-plugin
+COPY --from=build /src/dynamodb-plugin /plugin/jaeger-dynamodb
