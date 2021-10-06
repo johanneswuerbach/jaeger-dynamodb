@@ -22,4 +22,7 @@ COPY --from=build /src/dynamodb-plugin /go/bin
 
 FROM scratch
 
-COPY --from=build /src/dynamodb-plugin /plugin/jaeger-dynamodb
+COPY --from=build /src/dynamodb-plugin /jaeger-dynamodb
+
+# The /plugin is used by the jaeger-operator https://github.com/jaegertracing/jaeger-operator/pull/1517
+CMD ["cp", "/jaeger-dynamodb", "/plugin/jaeger-dynamodb"]
