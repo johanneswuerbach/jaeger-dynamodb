@@ -3,7 +3,9 @@ version: '3.7'
 services:
   jaeger:
     image: johanneswuerbach/jaeger-dynamodb
-    build: .
+    build:
+      context: .
+      target: jaeger-test
     hostname: jaeger
     environment:
       - GRPC_STORAGE_PLUGIN_LOG_LEVEL=debug

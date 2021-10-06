@@ -20,6 +20,9 @@ WORKDIR /jaeger
 RUN git checkout b5d340dbc5a17ded4f291dbcb94ae62dbc3149ff
 COPY --from=build /src/dynamodb-plugin /go/bin
 
-FROM jaegertracing/all-in-one:1.26.0
-
+FROM jaegertracing/all-in-one:1.26.0 AS jaeger-test
 COPY --from=build /src/dynamodb-plugin /go/bin
+
+FROM scratch
+
+COPY --from=build /src/dynamodb-plugin /dynamodb-plugin
