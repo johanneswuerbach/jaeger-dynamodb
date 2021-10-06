@@ -12,6 +12,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const timeToLiveAttributeName = "ExpireTime"
+
 func recreateTable(ctx context.Context, svc *dynamodb.Client, input *dynamodb.CreateTableInput) error {
 	_, err := svc.DeleteTable(ctx, &dynamodb.DeleteTableInput{
 		TableName: input.TableName,
@@ -36,6 +38,17 @@ func recreateTable(ctx context.Context, svc *dynamodb.Client, input *dynamodb.Cr
 	wCreate := dynamodb.NewTableExistsWaiter(svc)
 	if err := wCreate.Wait(ctx, &dynamodb.DescribeTableInput{TableName: input.TableName}, time.Minute*5); err != nil {
 		return fmt.Errorf("failed waiting for table creation, %v", err)
+	}
+
+	_, err = svc.UpdateTimeToLive(ctx, &dynamodb.UpdateTimeToLiveInput{
+		TableName: input.TableName,
+		TimeToLiveSpecification: &types.TimeToLiveSpecification{
+			AttributeName: aws.String(timeToLiveAttributeName),
+			Enabled:       aws.Bool(true),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed updating table ttl, %v", err)
 	}
 
 	return nil
