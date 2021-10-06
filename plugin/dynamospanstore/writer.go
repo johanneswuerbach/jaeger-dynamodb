@@ -3,6 +3,7 @@ package dynamospanstore
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -11,6 +12,9 @@ import (
 	"github.com/jaegertracing/jaeger/model"
 	"golang.org/x/sync/errgroup"
 )
+
+// TODO Make this configurable
+const expiresAfter = 7 * 24 * time.Hour
 
 func NewWriter(logger hclog.Logger, svc *dynamodb.Client, spansTable, servicesTable, operationsTable string) *Writer {
 	return &Writer{
@@ -61,9 +65,14 @@ type SpanItem struct {
 	ServiceName    string
 	ProcessID      string
 	Warnings       []string
+	ExpiresAfter   int64
 	// XXX_NoUnkeyedLiteral struct{}
 	// XXX_unrecognized     []byte
 	// XXX_sizecache        int32
+}
+
+func itemExpiresAfter() int64 {
+	return time.Now().Add(expiresAfter).UnixMilli() / 1000
 }
 
 func NewSpanItemFromSpan(span *model.Span) *SpanItem {
@@ -88,6 +97,7 @@ func NewSpanItemFromSpan(span *model.Span) *SpanItem {
 		ServiceName:    span.Process.ServiceName,
 		ProcessID:      span.ProcessID,
 		Warnings:       span.Warnings,
+		ExpiresAfter:   itemExpiresAfter(),
 	}
 }
 
@@ -141,28 +151,32 @@ func NewSpanItemReferenceFromReference(reference model.SpanRef) *SpanItemReferen
 }
 
 type ServiceItem struct {
-	Name string
+	Name         string
+	ExpiresAfter int64
 }
 
 func NewServiceItemFromSpan(span *model.Span) *ServiceItem {
 	return &ServiceItem{
-		Name: span.Process.ServiceName,
+		Name:         span.Process.ServiceName,
+		ExpiresAfter: itemExpiresAfter(),
 	}
 }
 
 type OperationItem struct {
-	Name        string
-	ServiceName string
-	SpanKind    string
+	Name         string
+	ServiceName  string
+	SpanKind     string
+	ExpiresAfter int64
 }
 
 func NewOperationItemFromSpan(span *model.Span) *OperationItem {
 	spanKind, _ := span.GetSpanKind()
 
 	return &OperationItem{
-		Name:        span.OperationName,
-		ServiceName: span.Process.ServiceName,
-		SpanKind:    spanKind,
+		Name:         span.OperationName,
+		ServiceName:  span.Process.ServiceName,
+		SpanKind:     spanKind,
+		ExpiresAfter: itemExpiresAfter(),
 	}
 }
 
