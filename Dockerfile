@@ -13,14 +13,11 @@ FROM code AS test
 
 FROM base AS jaeger-grpc-integration
 ARG GOARCH=amd64
-RUN git clone https://github.com/jaegertracing/jaeger.git /jaeger
+RUN git clone --depth=1 --single-branch --branch=v1.27.0 https://github.com/jaegertracing/jaeger.git /jaeger
 WORKDIR /jaeger
-# Checkout a commit instead of a version as the latest version v1.26.0
-# is missing changes we need for the grpc integration tests
-RUN git checkout b5d340dbc5a17ded4f291dbcb94ae62dbc3149ff
 COPY --from=build /src/dynamodb-plugin /go/bin
 
-FROM jaegertracing/all-in-one:1.26.0 AS jaeger-test
+FROM jaegertracing/all-in-one:1.27.0 AS jaeger-test
 COPY --from=build /src/dynamodb-plugin /go/bin
 
 FROM scratch
