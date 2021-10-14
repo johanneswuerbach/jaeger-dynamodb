@@ -67,7 +67,8 @@ func TestGetServices(t *testing.T) {
 
 	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
-	writer := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	assert.NoError(err)
 
 	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
 		SpansTable:      spansTable,
@@ -130,7 +131,8 @@ func TestGetOperations(t *testing.T) {
 
 	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
-	writer := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	assert.NoError(err)
 
 	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
 		SpansTable:      spansTable,
@@ -257,7 +259,8 @@ func TestFindTraces(t *testing.T) {
 
 	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
-	writer := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	assert.NoError(err)
 
 	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
 		SpansTable:      spansTable,
