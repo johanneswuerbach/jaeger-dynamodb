@@ -9,29 +9,57 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/hashicorp/go-hclog"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/jaegertracing/jaeger/model"
 	"golang.org/x/sync/errgroup"
 )
 
 // TODO Make this configurable
-const expiresAfter = 7 * 24 * time.Hour
+const (
+	expiresAfter        = 7 * 24 * time.Hour
+	serviceCacheSize    = 100
+	operationsCacheSize = 300
+)
 
-func NewWriter(logger hclog.Logger, svc *dynamodb.Client, spansTable, servicesTable, operationsTable string) *Writer {
+var (
+	serviceDedupeWritesFor    = 5 * time.Minute
+	operationsDedupeWritesFor = 5 * time.Minute
+)
+
+type DynamoDBAPI interface {
+	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+}
+
+func NewWriter(logger hclog.Logger, svc DynamoDBAPI, spansTable, servicesTable, operationsTable string) (*Writer, error) {
+	serviceCache, err := lru.New(serviceCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create service cache, %v", err)
+	}
+
+	operationsCache, err := lru.New(operationsCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create operations cache, %v", err)
+	}
+
 	return &Writer{
 		svc:             svc,
 		spansTable:      spansTable,
 		servicesTable:   servicesTable,
 		operationsTable: operationsTable,
 		logger:          logger,
-	}
+		serviceCache:    serviceCache,
+		operationsCache: operationsCache,
+	}, nil
 }
 
 type Writer struct {
 	logger          hclog.Logger
-	svc             *dynamodb.Client
+	svc             DynamoDBAPI
 	spansTable      string
 	servicesTable   string
 	operationsTable string
+	serviceCache    *lru.Cache
+	operationsCache *lru.Cache
 }
 
 type SpanItemProcess struct {
@@ -202,17 +230,27 @@ func (s *Writer) writeSpanItem(ctx context.Context, span *model.Span) error {
 }
 
 func (s *Writer) writeServiceItem(ctx context.Context, span *model.Span) error {
-	if span.Process.ServiceName == "" {
+	serviceName := span.Process.ServiceName
+	if serviceName == "" {
 		return nil
 	}
-	return s.writeItem(ctx, NewServiceItemFromSpan(span), s.servicesTable)
+
+	return dedupeFunc(s.serviceCache, serviceName, serviceDedupeWritesFor, func() error {
+		return s.writeItem(ctx, NewServiceItemFromSpan(span), s.servicesTable)
+	})
 }
 
 func (s *Writer) writeOperationItem(ctx context.Context, span *model.Span) error {
-	if span.OperationName == "" {
+	operationName := span.OperationName
+	serviceName := span.Process.ServiceName
+	if operationName == "" || serviceName == "" {
 		return nil
 	}
-	return s.writeItem(ctx, NewOperationItemFromSpan(span), s.operationsTable)
+
+	dedupeKey := fmt.Sprintf("%s__%s", serviceName, operationName)
+	return dedupeFunc(s.operationsCache, dedupeKey, operationsDedupeWritesFor, func() error {
+		return s.writeItem(ctx, NewOperationItemFromSpan(span), s.operationsTable)
+	})
 }
 
 func (s *Writer) WriteSpan(ctx context.Context, span *model.Span) error {
@@ -220,21 +258,18 @@ func (s *Writer) WriteSpan(ctx context.Context, span *model.Span) error {
 
 	g, ctx := errgroup.WithContext(context.Background())
 	// TODO Writes should be batched here
-	// TODO Write TTL
 	g.Go(func() error {
 		if err := s.writeSpanItem(ctx, span); err != nil {
 			return fmt.Errorf("failed to write span item, %v", err)
 		}
 		return nil
 	})
-	// TODO Writes should be deduped here
 	g.Go(func() error {
 		if err := s.writeServiceItem(ctx, span); err != nil {
 			return fmt.Errorf("failed to write service item, %v", err)
 		}
 		return nil
 	})
-	// TODO Writes should be deduped here
 	g.Go(func() error {
 		if err := s.writeOperationItem(ctx, span); err != nil {
 			return fmt.Errorf("failed to write operation item, %v", err)
@@ -246,5 +281,18 @@ func (s *Writer) WriteSpan(ctx context.Context, span *model.Span) error {
 		return err
 	}
 
+	return nil
+}
+
+// dedupeFunc de-duplicates the function execution for a specified duration based on a key
+func dedupeFunc(cache *lru.Cache, key string, dedupeDuration time.Duration, targetFunc func() error) error {
+	timeNow := time.Now()
+	if nextWriteTime, ok := cache.Get(key); !ok || timeNow.After(nextWriteTime.(time.Time)) {
+		err := targetFunc()
+		if err != nil {
+			return err
+		}
+		cache.Add(key, timeNow.Add(dedupeDuration))
+	}
 	return nil
 }

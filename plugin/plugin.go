@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/johanneswuerbach/jaeger-dynamodb/plugin/dynamodependencystore"
@@ -11,10 +13,20 @@ import (
 )
 
 func NewDynamoDBPlugin(logger hclog.Logger, svc *dynamodb.Client, spansTable, servicesTable, operationsTable string) (*DynamoDBPlugin, error) {
+	spanWriter, err := dynamospanstore.NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create span writer, %v", err)
+	}
+
+	archiveSpanWriter, err := dynamospanstore.NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create archive span writer, %v", err)
+	}
+
 	return &DynamoDBPlugin{
-		spanWriter:        dynamospanstore.NewWriter(logger, svc, spansTable, servicesTable, operationsTable),
+		spanWriter:        spanWriter,
 		spanReader:        dynamospanstore.NewReader(logger, svc, spansTable, servicesTable, operationsTable),
-		archiveSpanWriter: dynamospanstore.NewWriter(logger, svc, spansTable, servicesTable, operationsTable),
+		archiveSpanWriter: archiveSpanWriter,
 		archiveSpanReader: dynamospanstore.NewReader(logger, svc, spansTable, servicesTable, operationsTable),
 		dependencyReader:  dynamodependencystore.NewReader(logger, svc),
 
