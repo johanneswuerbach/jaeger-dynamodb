@@ -209,7 +209,7 @@ spec:
   storage:
     type: grpc-plugin
     grpcPlugin:
-      image: ghcr.io/johanneswuerbach/jaeger-dynamodb:v0.0.5
+      image: ghcr.io/johanneswuerbach/jaeger-dynamodb:v0.0.6
     options:
       grpc-storage-plugin:
         binary: /plugin/jaeger-dynamodb
