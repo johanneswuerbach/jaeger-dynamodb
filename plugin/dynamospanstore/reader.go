@@ -348,6 +348,9 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 			return nil, fmt.Errorf("failed to unmarshal items, %v", err)
 		}
 		for _, item := range traceIDResults {
+			if len(traceIDMap) >= query.NumTraces {
+				break
+			}
 			traceIDMap[item.TraceID] = struct{}{}
 		}
 	}
