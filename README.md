@@ -34,10 +34,36 @@ data "aws_iam_policy_document" "jaeger" {
   }
 }
 
+# This assumes you are using kube2iam https://github.com/jtblin/kube2iam#iam-roles and should
+# be adjusted if you use kiam https://github.com/uswitch/kiam or EKS https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+
+data "aws_iam_policy_document" "k8s_nodes_assumerole" {
+  statement {
+    actions = [
+      "sts:AssumeRole",
+    ]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+
+  statement {
+    actions = [
+      "sts:AssumeRole",
+    ]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::123456789012:role/kubernetes-worker-role"]
+    }
+  }
+}
+
 resource "aws_iam_role" "jaeger" {
   name               = "jaeger"
-  assume_role_policy = module.k8s_assume_role.policy
-  tags               = module.k8s_assume_role.assume_role_tags
+  assume_role_policy = data.aws_iam_policy_document.k8s_nodes_assumerole.json
 }
 
 resource "aws_iam_role_policy" "jaeger" {
