@@ -35,9 +35,11 @@ logs: ## Print the jaeger service logs
 down: ## Shutdown all containers
 	docker compose down -v
 
-.PHONY: test
-test: ## Run jaeger plugin tests
+build-test: ## Build the plugin test image
 	docker compose build --build-arg GOARCH=$(GOARCH) test
+
+.PHONY: test
+test: build-test ## Run jaeger plugin tests
 	docker compose run --rm test go test -v ./...
 
 test-jaeger-grpc-integration: ## Run jaeger integration tests for grpc plugins
@@ -48,3 +50,6 @@ test-jaeger-grpc-integration: ## Run jaeger integration tests for grpc plugins
 
 lint: ## Lint the code
 	docker run --rm -v $(PWD):/app -w /app golangci/golangci-lint:v1.42.1 golangci-lint run -v
+
+bench: build-test ## Run plugin benchmarks
+	docker compose run --rm test go test -bench=. ./... -benchtime=30s

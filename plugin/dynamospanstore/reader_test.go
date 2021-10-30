@@ -98,6 +98,7 @@ func TestGetServices(t *testing.T) {
 		]
 	}`), &span))
 	assert.NoError(writer.WriteSpan(ctx, &span))
+	assert.NoError(writer.Close())
 
 	serviceNames, err := reader.GetServices(ctx)
 	assert.NoError(err)
@@ -158,6 +159,7 @@ func TestGetOperations(t *testing.T) {
 	var span model.Span
 	assert.NoError(jsonpb.Unmarshal(strings.NewReader(spanWithOperation), &span))
 	assert.NoError(writer.WriteSpan(ctx, &span))
+	assert.NoError(writer.Close())
 
 	operations, err := reader.GetOperations(ctx, spanstore.OperationQueryParameters{ServiceName: "query12-service"})
 	assert.NoError(err)
@@ -246,8 +248,6 @@ func TestFindTraces(t *testing.T) {
 
 	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
-	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
-	assert.NoError(err)
 
 	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
 		SpansTable:      spansTable,
@@ -269,9 +269,14 @@ func TestFindTraces(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+		assert.NoError(err)
+
 		var span model.Span
 		assert.NoError(jsonpb.Unmarshal(strings.NewReader(tc.input), &span))
 		assert.NoError(writer.WriteSpan(ctx, &span))
+		assert.NoError(writer.Close())
+
 		traces, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
 			ServiceName:  "query12-service",
 			StartTimeMin: startTimeMin,
@@ -321,6 +326,7 @@ func TestFindTracesWithLimit(t *testing.T) {
 	assert.NoError(writer.WriteSpan(ctx, &span))
 	assert.NoError(jsonpb.Unmarshal(strings.NewReader(spanWithOperation), &span))
 	assert.NoError(writer.WriteSpan(ctx, &span))
+	assert.NoError(writer.Close())
 
 	traces, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
 		ServiceName:  "query12-service",

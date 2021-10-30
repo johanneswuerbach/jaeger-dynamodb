@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/hashicorp/go-hclog"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/jaegertracing/jaeger/model"
@@ -16,18 +17,18 @@ import (
 
 // TODO Make this configurable
 const (
-	expiresAfter        = 7 * 24 * time.Hour
-	serviceCacheSize    = 100
-	operationsCacheSize = 300
-)
-
-var (
+	expiresAfter              = 7 * 24 * time.Hour
+	serviceCacheSize          = 100
+	operationsCacheSize       = 300
 	serviceDedupeWritesFor    = 5 * time.Minute
 	operationsDedupeWritesFor = 5 * time.Minute
+	spanFlushInterval         = 5 * time.Second
+	spanBatchItems            = 25
 )
 
 type DynamoDBAPI interface {
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	BatchWriteItem(ctx context.Context, params *dynamodb.BatchWriteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.BatchWriteItemOutput, error)
 }
 
 func NewWriter(logger hclog.Logger, svc DynamoDBAPI, spansTable, servicesTable, operationsTable string) (*Writer, error) {
@@ -41,15 +42,85 @@ func NewWriter(logger hclog.Logger, svc DynamoDBAPI, spansTable, servicesTable, 
 		return nil, fmt.Errorf("failed to create operations cache, %v", err)
 	}
 
+	spanWriteBuffer := make(chan interface{})
+	closeChan := make(chan interface{})
+
+	ctx := context.Background()
+	spanBatches := BatchSpans(spanWriteBuffer, spanBatchItems, spanFlushInterval)
+
+	go func() {
+		for spanBatch := range spanBatches {
+			putItems := make([]types.WriteRequest, len(spanBatch))
+
+			for i, v := range spanBatch {
+				putItems[i] = types.WriteRequest{
+					PutRequest: &types.PutRequest{
+						Item: v.(map[string]types.AttributeValue),
+					},
+				}
+			}
+
+			_, err = svc.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{
+				RequestItems: map[string][]types.WriteRequest{
+					spansTable: putItems,
+				},
+			})
+			if err != nil {
+				logger.Error("failed to write span batch", err)
+			}
+		}
+		close(closeChan)
+	}()
+
 	return &Writer{
-		svc:             svc,
+		svc: svc,
+
 		spansTable:      spansTable,
 		servicesTable:   servicesTable,
 		operationsTable: operationsTable,
 		logger:          logger,
 		serviceCache:    serviceCache,
 		operationsCache: operationsCache,
+		spanWriteBuffer: spanWriteBuffer,
+		close:           closeChan,
 	}, nil
+}
+
+func BatchSpans(spans <-chan interface{}, maxItems int, maxTimeout time.Duration) chan []interface{} {
+	batches := make(chan []interface{})
+
+	go func() {
+		defer close(batches)
+
+		for keepGoing := true; keepGoing; {
+			var batch []interface{}
+			expire := time.After(maxTimeout)
+			for {
+				select {
+				case value, ok := <-spans:
+					if !ok {
+						keepGoing = false
+						goto done
+					}
+
+					batch = append(batch, value)
+					if len(batch) == maxItems {
+						goto done
+					}
+
+				case <-expire:
+					goto done
+				}
+			}
+
+		done:
+			if len(batch) > 0 {
+				batches <- batch
+			}
+		}
+	}()
+
+	return batches
 }
 
 type Writer struct {
@@ -60,6 +131,8 @@ type Writer struct {
 	operationsTable string
 	serviceCache    *lru.Cache
 	operationsCache *lru.Cache
+	spanWriteBuffer chan interface{}
+	close           chan interface{}
 }
 
 type SpanItemProcess struct {
@@ -226,7 +299,15 @@ func (s *Writer) writeItem(ctx context.Context, item interface{}, table string) 
 }
 
 func (s *Writer) writeSpanItem(ctx context.Context, span *model.Span) error {
-	return s.writeItem(ctx, NewSpanItemFromSpan(span), s.spansTable)
+	spanItem := NewSpanItemFromSpan(span)
+	av, err := attributevalue.MarshalMap(spanItem)
+	if err != nil {
+		return fmt.Errorf("failed to marshal span: %w", err)
+	}
+
+	s.spanWriteBuffer <- av
+
+	return nil
 }
 
 func (s *Writer) writeServiceItem(ctx context.Context, span *model.Span) error {
@@ -257,7 +338,6 @@ func (s *Writer) WriteSpan(ctx context.Context, span *model.Span) error {
 	// s.logger.Debug("WriteSpan", span)
 
 	g, ctx := errgroup.WithContext(context.Background())
-	// TODO Writes should be batched here
 	g.Go(func() error {
 		if err := s.writeSpanItem(ctx, span); err != nil {
 			return fmt.Errorf("failed to write span item, %v", err)
@@ -284,6 +364,13 @@ func (s *Writer) WriteSpan(ctx context.Context, span *model.Span) error {
 	return nil
 }
 
+func (s *Writer) Close() error {
+	close(s.spanWriteBuffer)
+	<-s.close
+
+	return nil
+}
+
 // dedupeFunc de-duplicates the function execution for a specified duration based on a key
 func dedupeFunc(cache *lru.Cache, key string, dedupeDuration time.Duration, targetFunc func() error) error {
 	timeNow := time.Now()
@@ -293,6 +380,7 @@ func dedupeFunc(cache *lru.Cache, key string, dedupeDuration time.Duration, targ
 			return err
 		}
 		cache.Add(key, timeNow.Add(dedupeDuration))
+		return nil
 	}
 	return nil
 }
