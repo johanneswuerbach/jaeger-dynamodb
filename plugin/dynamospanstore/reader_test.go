@@ -67,7 +67,7 @@ func TestGetServices(t *testing.T) {
 	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 	assert.NoError(err)
 
-	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
+	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
 		SpansTable:      spansTable,
 		ServicesTable:   servicesTable,
 		OperationsTable: operationsTable,
@@ -149,7 +149,7 @@ func TestGetOperations(t *testing.T) {
 	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 	assert.NoError(err)
 
-	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
+	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
 		SpansTable:      spansTable,
 		ServicesTable:   servicesTable,
 		OperationsTable: operationsTable,
@@ -246,10 +246,8 @@ func TestFindTraces(t *testing.T) {
 
 	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
-	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
-	assert.NoError(err)
 
-	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
+	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
 		SpansTable:      spansTable,
 		ServicesTable:   servicesTable,
 		OperationsTable: operationsTable,
@@ -269,9 +267,13 @@ func TestFindTraces(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+		assert.NoError(err)
+
 		var span model.Span
 		assert.NoError(jsonpb.Unmarshal(strings.NewReader(tc.input), &span))
 		assert.NoError(writer.WriteSpan(ctx, &span))
+
 		traces, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
 			ServiceName:  "query12-service",
 			StartTimeMin: startTimeMin,
@@ -307,7 +309,7 @@ func TestFindTracesWithLimit(t *testing.T) {
 	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 	assert.NoError(err)
 
-	assert.NoError(setup.RecreateTables(ctx, svc, &setup.SetupOptions{
+	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
 		SpansTable:      spansTable,
 		ServicesTable:   servicesTable,
 		OperationsTable: operationsTable,

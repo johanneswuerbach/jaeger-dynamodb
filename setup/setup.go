@@ -130,13 +130,33 @@ func ensureOperationsTable(ctx context.Context, svc *dynamodb.Client, tableName 
 	})
 }
 
-type SetupOptions struct {
+func ensureDependenciesTable(ctx context.Context, svc *dynamodb.Client, tableName string) error {
+	var (
+		operationIDKey    = "Key"
+		operationRangeKey = "CallTimeBucket"
+	)
+
+	return recreateTable(ctx, svc, &dynamodb.CreateTableInput{
+		AttributeDefinitions: []types.AttributeDefinition{
+			{AttributeName: &operationIDKey, AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: &operationRangeKey, AttributeType: types.ScalarAttributeTypeN},
+		},
+		BillingMode: types.BillingModePayPerRequest,
+		TableName:   &tableName,
+		KeySchema: []types.KeySchemaElement{
+			{AttributeName: &operationIDKey, KeyType: types.KeyTypeHash},
+			{AttributeName: &operationRangeKey, KeyType: types.KeyTypeRange},
+		},
+	})
+}
+
+type SetupSpanOptions struct {
 	SpansTable      string
 	ServicesTable   string
 	OperationsTable string
 }
 
-func RecreateTables(ctx context.Context, svc *dynamodb.Client, options *SetupOptions) error {
+func RecreateSpanStoreTables(ctx context.Context, svc *dynamodb.Client, options *SetupSpanOptions) error {
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		if err := ensureSpansTable(ctx, svc, options.SpansTable); err != nil {
@@ -153,6 +173,26 @@ func RecreateTables(ctx context.Context, svc *dynamodb.Client, options *SetupOpt
 	g.Go(func() error {
 		if err := ensureOperationsTable(ctx, svc, options.OperationsTable); err != nil {
 			return fmt.Errorf("failed to ensure operations table, %v", err)
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type SetupDependencyOptions struct {
+	DependenciesTable string
+}
+
+func RecreateDependencyStoreTables(ctx context.Context, svc *dynamodb.Client, options *SetupDependencyOptions) error {
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		if err := ensureDependenciesTable(ctx, svc, options.DependenciesTable); err != nil {
+			return fmt.Errorf("failed to ensure dependencies table, %v", err)
 		}
 		return nil
 	})

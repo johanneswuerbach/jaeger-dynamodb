@@ -24,9 +24,10 @@ import (
 const (
 	loggerName = "jaeger-dynamodb"
 
-	spansTable      = "jaeger.spans"
-	servicesTable   = "jaeger.services"
-	operationsTable = "jaeger.operations"
+	spansTable        = "jaeger.spans"
+	servicesTable     = "jaeger.services"
+	operationsTable   = "jaeger.operations"
+	dependenciesTable = "jaeger.dependencies"
 )
 
 func main() {
@@ -89,10 +90,16 @@ func main() {
 
 	if viper.GetBool("create-tables") {
 		logger.Debug("Creating tables.")
-		if err := setup.RecreateTables(ctx, svc, &setup.SetupOptions{
+		if err := setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
 			SpansTable:      spansTable,
 			ServicesTable:   servicesTable,
 			OperationsTable: operationsTable,
+		}); err != nil {
+			log.Fatalf("unable to create tables, %v", err)
+		}
+
+		if err := setup.RecreateDependencyStoreTables(ctx, svc, &setup.SetupDependencyOptions{
+			DependenciesTable: dependenciesTable,
 		}); err != nil {
 			log.Fatalf("unable to create tables, %v", err)
 		}
@@ -103,7 +110,7 @@ func main() {
 		return
 	}
 
-	dynamodbPlugin, err := plugin.NewDynamoDBPlugin(logger, svc, spansTable, servicesTable, operationsTable)
+	dynamodbPlugin, err := plugin.NewDynamoDBPlugin(logger, svc, spansTable, servicesTable, operationsTable, dependenciesTable)
 	if err != nil {
 		log.Fatalf("unable to create plugin, %v", err)
 	}

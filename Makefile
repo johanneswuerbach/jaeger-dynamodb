@@ -48,3 +48,6 @@ test-jaeger-grpc-integration: ## Run jaeger integration tests for grpc plugins
 
 lint: ## Lint the code
 	docker run --rm -v $(PWD):/app -w /app golangci/golangci-lint:v1.42.1 golangci-lint run -v
+
+build-dependency-lambda: ## Build the dependency lambda
+	make -C ./dependency-lambda build

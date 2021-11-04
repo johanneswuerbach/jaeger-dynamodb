@@ -12,7 +12,7 @@ import (
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 )
 
-func NewDynamoDBPlugin(logger hclog.Logger, svc *dynamodb.Client, spansTable, servicesTable, operationsTable string) (*DynamoDBPlugin, error) {
+func NewDynamoDBPlugin(logger hclog.Logger, svc *dynamodb.Client, spansTable, servicesTable, operationsTable, dependenciesTable string) (*DynamoDBPlugin, error) {
 	spanWriter, err := dynamospanstore.NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create span writer, %v", err)
@@ -28,7 +28,7 @@ func NewDynamoDBPlugin(logger hclog.Logger, svc *dynamodb.Client, spansTable, se
 		spanReader:        dynamospanstore.NewReader(logger, svc, spansTable, servicesTable, operationsTable),
 		archiveSpanWriter: archiveSpanWriter,
 		archiveSpanReader: dynamospanstore.NewReader(logger, svc, spansTable, servicesTable, operationsTable),
-		dependencyReader:  dynamodependencystore.NewReader(logger, svc),
+		dependencyReader:  dynamodependencystore.NewReader(logger, svc, dependenciesTable),
 
 		logger: logger,
 		svc:    svc,
