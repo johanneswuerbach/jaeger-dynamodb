@@ -16,6 +16,8 @@ jobs:
           curl -SL https://github.com/docker/compose/releases/download/v2.0.0/docker-compose-linux-amd64 -o ~/.docker/cli-plugins/docker-compose
           chmod +x ~/.docker/cli-plugins/docker-compose
       - run: make build-dependency-lambda
+        env:
+          DOCKER_BUILDKIT: "1"
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
