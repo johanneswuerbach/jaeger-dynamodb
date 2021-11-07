@@ -1,0 +1,842 @@
+{
+  "Records": [
+    {
+      "awsRegion": "eu-west-1",
+      "dynamodb": {
+        "ApproximateCreationDateTime": 1636291794,
+        "Keys": {
+          "SpanID": {
+            "S": "6f8247947e6a946d"
+          },
+          "TraceID": {
+            "S": "2568637b984048f9"
+          }
+        },
+        "NewImage": {
+          "Duration": {
+            "N": "35000"
+          },
+          "ExpiresAfter": {
+            "N": "1636896594"
+          },
+          "Flags": {
+            "N": "0"
+          },
+          "Logs": {
+            "L": []
+          },
+          "OperationName": {
+            "S": "/thanos.Store/Info"
+          },
+          "Process": {
+            "M": {
+              "ServiceName": {
+                "S": "thanos-sidecar"
+              },
+              "Tags": {
+                "L": [
+                  {
+                    "M": {
+                      "Key": {
+                        "S": "opencensus.exporterversion"
+                      },
+                      "VBinary": {
+                        "NULL": true
+                      },
+                      "VBool": {
+                        "BOOL": false
+                      },
+                      "VFloat64": {
+                        "N": "0"
+                      },
+                      "VInt64": {
+                        "N": "0"
+                      },
+                      "VStr": {
+                        "S": "Jaeger-Go-2.25.0"
+                      },
+                      "VType": {
+                        "N": "0"
+                      },
+                      "XXX_NoUnkeyedLiteral": {
+                        "M": {}
+                      },
+                      "XXX_sizecache": {
+                        "N": "0"
+                      },
+                      "XXX_unrecognized": {
+                        "NULL": true
+                      }
+                    }
+                  },
+                  {
+                    "M": {
+                      "Key": {
+                        "S": "host.name"
+                      },
+                      "VBinary": {
+                        "NULL": true
+                      },
+                      "VBool": {
+                        "BOOL": false
+                      },
+                      "VFloat64": {
+                        "N": "0"
+                      },
+                      "VInt64": {
+                        "N": "0"
+                      },
+                      "VStr": {
+                        "S": "prometheus-metamon-0"
+                      },
+                      "VType": {
+                        "N": "0"
+                      },
+                      "XXX_NoUnkeyedLiteral": {
+                        "M": {}
+                      },
+                      "XXX_sizecache": {
+                        "N": "0"
+                      },
+                      "XXX_unrecognized": {
+                        "NULL": true
+                      }
+                    }
+                  },
+                  {
+                    "M": {
+                      "Key": {
+                        "S": "ip"
+                      },
+                      "VBinary": {
+                        "NULL": true
+                      },
+                      "VBool": {
+                        "BOOL": false
+                      },
+                      "VFloat64": {
+                        "N": "0"
+                      },
+                      "VInt64": {
+                        "N": "0"
+                      },
+                      "VStr": {
+                        "S": "100.96.17.67"
+                      },
+                      "VType": {
+                        "N": "0"
+                      },
+                      "XXX_NoUnkeyedLiteral": {
+                        "M": {}
+                      },
+                      "XXX_sizecache": {
+                        "N": "0"
+                      },
+                      "XXX_unrecognized": {
+                        "NULL": true
+                      }
+                    }
+                  },
+                  {
+                    "M": {
+                      "Key": {
+                        "S": "client-uuid"
+                      },
+                      "VBinary": {
+                        "NULL": true
+                      },
+                      "VBool": {
+                        "BOOL": false
+                      },
+                      "VFloat64": {
+                        "N": "0"
+                      },
+                      "VInt64": {
+                        "N": "0"
+                      },
+                      "VStr": {
+                        "S": "73a166775eeaf46f"
+                      },
+                      "VType": {
+                        "N": "0"
+                      },
+                      "XXX_NoUnkeyedLiteral": {
+                        "M": {}
+                      },
+                      "XXX_sizecache": {
+                        "N": "0"
+                      },
+                      "XXX_unrecognized": {
+                        "NULL": true
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "ProcessID": {
+            "S": ""
+          },
+          "References": {
+            "L": [
+              {
+                "M": {
+                  "RefType": {
+                    "N": "0"
+                  },
+                  "SpanID": {
+                    "S": "2568637b984048f9"
+                  },
+                  "TraceID": {
+                    "S": "2568637b984048f9"
+                  }
+                }
+              }
+            ]
+          },
+          "SearchableTags": {
+            "M": {
+              "client-uuid": {
+                "S": "73a166775eeaf46f"
+              },
+              "component": {
+                "S": "gRPC"
+              },
+              "host.name": {
+                "S": "prometheus-metamon-0"
+              },
+              "internal.span.format": {
+                "S": "proto"
+              },
+              "ip": {
+                "S": "100.96.17.67"
+              },
+              "opencensus.exporterversion": {
+                "S": "Jaeger-Go-2.25.0"
+              },
+              "span.kind": {
+                "S": "server"
+              },
+              "status.code": {
+                "S": "0"
+              }
+            }
+          },
+          "ServiceName": {
+            "S": "thanos-sidecar"
+          },
+          "SpanID": {
+            "S": "6f8247947e6a946d"
+          },
+          "StartTime": {
+            "N": "1636291794152655000"
+          },
+          "Tags": {
+            "L": [
+              {
+                "M": {
+                  "Key": {
+                    "S": "component"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": "gRPC"
+                  },
+                  "VType": {
+                    "N": "0"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "Key": {
+                    "S": "span.kind"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": "server"
+                  },
+                  "VType": {
+                    "N": "0"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "Key": {
+                    "S": "status.code"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": ""
+                  },
+                  "VType": {
+                    "N": "2"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "Key": {
+                    "S": "internal.span.format"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": "proto"
+                  },
+                  "VType": {
+                    "N": "0"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              }
+            ]
+          },
+          "TraceID": {
+            "S": "2568637b984048f9"
+          },
+          "Warnings": {
+            "NULL": true
+          }
+        },
+        "SequenceNumber": "763396300000000015646703203",
+        "SizeBytes": 1616,
+        "StreamViewType": "NEW_AND_OLD_IMAGES"
+      },
+      "eventID": "5543dae3dfc43708ad6bbef093da300d",
+      "eventName": "INSERT",
+      "eventSource": "aws:dynamodb",
+      "eventVersion": "1.1",
+      "eventSourceARN": "arn:aws:dynamodb:eu-west-1:XYZ:table/jaeger.spans/stream/2021-11-06T15:24:04.849"
+    },
+    {
+      "awsRegion": "eu-west-1",
+      "dynamodb": {
+        "ApproximateCreationDateTime": 1636291795,
+        "Keys": {
+          "SpanID": {
+            "S": "2568637b984048f9"
+          },
+          "TraceID": {
+            "S": "2568637b984048f9"
+          }
+        },
+        "NewImage": {
+          "Duration": {
+            "N": "2908000"
+          },
+          "ExpiresAfter": {
+            "N": "1636896595"
+          },
+          "Flags": {
+            "N": "0"
+          },
+          "Logs": {
+            "L": []
+          },
+          "OperationName": {
+            "S": "/thanos.Store/Info"
+          },
+          "Process": {
+            "M": {
+              "ServiceName": {
+                "S": "thanos-query"
+              },
+              "Tags": {
+                "L": [
+                  {
+                    "M": {
+                      "Key": {
+                        "S": "opencensus.exporterversion"
+                      },
+                      "VBinary": {
+                        "NULL": true
+                      },
+                      "VBool": {
+                        "BOOL": false
+                      },
+                      "VFloat64": {
+                        "N": "0"
+                      },
+                      "VInt64": {
+                        "N": "0"
+                      },
+                      "VStr": {
+                        "S": "Jaeger-Go-2.25.0"
+                      },
+                      "VType": {
+                        "N": "0"
+                      },
+                      "XXX_NoUnkeyedLiteral": {
+                        "M": {}
+                      },
+                      "XXX_sizecache": {
+                        "N": "0"
+                      },
+                      "XXX_unrecognized": {
+                        "NULL": true
+                      }
+                    }
+                  },
+                  {
+                    "M": {
+                      "Key": {
+                        "S": "host.name"
+                      },
+                      "VBinary": {
+                        "NULL": true
+                      },
+                      "VBool": {
+                        "BOOL": false
+                      },
+                      "VFloat64": {
+                        "N": "0"
+                      },
+                      "VInt64": {
+                        "N": "0"
+                      },
+                      "VStr": {
+                        "S": "thanos-query-78b6b57584-wgvkb"
+                      },
+                      "VType": {
+                        "N": "0"
+                      },
+                      "XXX_NoUnkeyedLiteral": {
+                        "M": {}
+                      },
+                      "XXX_sizecache": {
+                        "N": "0"
+                      },
+                      "XXX_unrecognized": {
+                        "NULL": true
+                      }
+                    }
+                  },
+                  {
+                    "M": {
+                      "Key": {
+                        "S": "ip"
+                      },
+                      "VBinary": {
+                        "NULL": true
+                      },
+                      "VBool": {
+                        "BOOL": false
+                      },
+                      "VFloat64": {
+                        "N": "0"
+                      },
+                      "VInt64": {
+                        "N": "0"
+                      },
+                      "VStr": {
+                        "S": "100.96.19.44"
+                      },
+                      "VType": {
+                        "N": "0"
+                      },
+                      "XXX_NoUnkeyedLiteral": {
+                        "M": {}
+                      },
+                      "XXX_sizecache": {
+                        "N": "0"
+                      },
+                      "XXX_unrecognized": {
+                        "NULL": true
+                      }
+                    }
+                  },
+                  {
+                    "M": {
+                      "Key": {
+                        "S": "client-uuid"
+                      },
+                      "VBinary": {
+                        "NULL": true
+                      },
+                      "VBool": {
+                        "BOOL": false
+                      },
+                      "VFloat64": {
+                        "N": "0"
+                      },
+                      "VInt64": {
+                        "N": "0"
+                      },
+                      "VStr": {
+                        "S": "70b1b726beb8c356"
+                      },
+                      "VType": {
+                        "N": "0"
+                      },
+                      "XXX_NoUnkeyedLiteral": {
+                        "M": {}
+                      },
+                      "XXX_sizecache": {
+                        "N": "0"
+                      },
+                      "XXX_unrecognized": {
+                        "NULL": true
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "ProcessID": {
+            "S": ""
+          },
+          "References": {
+            "L": []
+          },
+          "SearchableTags": {
+            "M": {
+              "client-uuid": {
+                "S": "70b1b726beb8c356"
+              },
+              "component": {
+                "S": "gRPC"
+              },
+              "host.name": {
+                "S": "thanos-query-78b6b57584-wgvkb"
+              },
+              "internal.span.format": {
+                "S": "proto"
+              },
+              "ip": {
+                "S": "100.96.19.44"
+              },
+              "opencensus.exporterversion": {
+                "S": "Jaeger-Go-2.25.0"
+              },
+              "sampler.param": {
+                "S": "true"
+              },
+              "sampler.type": {
+                "S": "const"
+              },
+              "span.kind": {
+                "S": "client"
+              },
+              "status.code": {
+                "S": "0"
+              }
+            }
+          },
+          "ServiceName": {
+            "S": "thanos-query"
+          },
+          "SpanID": {
+            "S": "2568637b984048f9"
+          },
+          "StartTime": {
+            "N": "1636291794150780000"
+          },
+          "Tags": {
+            "L": [
+              {
+                "M": {
+                  "Key": {
+                    "S": "sampler.type"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": "const"
+                  },
+                  "VType": {
+                    "N": "0"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "Key": {
+                    "S": "sampler.param"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": true
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": ""
+                  },
+                  "VType": {
+                    "N": "1"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "Key": {
+                    "S": "component"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": "gRPC"
+                  },
+                  "VType": {
+                    "N": "0"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "Key": {
+                    "S": "span.kind"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": "client"
+                  },
+                  "VType": {
+                    "N": "0"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "Key": {
+                    "S": "status.code"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": ""
+                  },
+                  "VType": {
+                    "N": "2"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              },
+              {
+                "M": {
+                  "Key": {
+                    "S": "internal.span.format"
+                  },
+                  "VBinary": {
+                    "NULL": true
+                  },
+                  "VBool": {
+                    "BOOL": false
+                  },
+                  "VFloat64": {
+                    "N": "0"
+                  },
+                  "VInt64": {
+                    "N": "0"
+                  },
+                  "VStr": {
+                    "S": "proto"
+                  },
+                  "VType": {
+                    "N": "0"
+                  },
+                  "XXX_NoUnkeyedLiteral": {
+                    "M": {}
+                  },
+                  "XXX_sizecache": {
+                    "N": "0"
+                  },
+                  "XXX_unrecognized": {
+                    "NULL": true
+                  }
+                }
+              }
+            ]
+          },
+          "TraceID": {
+            "S": "2568637b984048f9"
+          },
+          "Warnings": {
+            "NULL": true
+          }
+        },
+        "SequenceNumber": "763396600000000015646703589",
+        "SizeBytes": 1859,
+        "StreamViewType": "NEW_AND_OLD_IMAGES"
+      },
+      "eventID": "cda5e973734df97064869aed09881433",
+      "eventName": "INSERT",
+      "eventSource": "aws:dynamodb",
+      "eventVersion": "1.1",
+      "eventSourceARN": "arn:aws:dynamodb:eu-west-1:XYZ:table/jaeger.spans/stream/2021-11-06T15:24:04.849"
+    }
+  ]
+}

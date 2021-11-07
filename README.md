@@ -178,6 +178,138 @@ resource "aws_dynamodb_table" "jaeger_operations" {
     enabled = "true"
   }
 }
+
+resource "aws_dynamodb_table" "jaeger_dependencies" {
+  name         = "jaeger.dependencies"
+  billing_mode = "PAY_PER_REQUEST"
+
+  attribute {
+    name = "Key"
+    type = "S"
+  }
+
+  attribute {
+    name = "CallTimeBucket"
+    type = "N"
+  }
+
+  ttl {
+    attribute_name = "ExpireTime"
+    enabled        = true
+  }
+
+  hash_key  = "Key"
+  range_key = "CallTimeBucket"
+
+  server_side_encryption {
+    enabled = "true"
+  }
+
+  point_in_time_recovery {
+    enabled = "true"
+  }
+}
+
+// Lambda to compute the dependencies between services
+
+data "aws_iam_policy_document" "lambda_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type = "Service"
+
+      identifiers = [
+        "lambda.amazonaws.com",
+      ]
+    }
+
+    effect = "Allow"
+  }
+}
+
+resource "aws_iam_role" "jaeger_dependencies_lambda" {
+  name               = "jaeger_dependencies_lambda"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+locals {
+  jaeger_spans_table        = "jaeger.spans"
+  jaeger_dependencies_table = "jaeger.dependencies"
+}
+
+
+data "aws_iam_policy_document" "jaeger_dependencies_lambda" {
+  statement {
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+
+    resources = [
+      "arn:aws:logs:*:*:*",
+    ]
+  }
+
+  statement {
+    actions = [
+      "dynamodb:DescribeStream",
+      "dynamodb:GetRecords",
+      "dynamodb:GetShardIterator",
+      "dynamodb:ListStreams"
+    ]
+
+    resources = [
+      "arn:aws:dynamodb:*:*:table/${local.jaeger_spans_table}/stream/*"
+    ]
+  }
+
+  statement {
+    actions = [
+      "dynamodb:BatchGetItem",
+      "dynamodb:BatchUpdateItem",
+      "dynamodb:GetItem",
+      "dynamodb:UpdateItem",
+    ]
+
+    resources = [
+      "arn:aws:dynamodb:*:*:table/${local.jaeger_dependencies_table}"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "jaeger_dependencies_lambda" {
+  name   = "jaeger_dependencies_lambda"
+  policy = data.aws_iam_policy_document.jaeger_dependencies_lambda.json
+}
+
+resource "aws_iam_role_policy_attachment" "jaeger_dependencies_lambda" {
+  role       = aws_iam_role.jaeger_dependencies_lambda.name
+  policy_arn = aws_iam_policy.jaeger_dependencies_lambda.arn
+}
+
+resource "aws_lambda_function" "jaeger_dependencies" {
+  filename      = "${path.module}/dependency-lambda.zip"
+  function_name = "jaeger_dependencies"
+  role          = aws_iam_role.jaeger_dependencies_lambda.arn
+  handler       = "bootstrap"
+
+  source_code_hash = filebase64sha256("${path.module}/dependency-lambda.zip")
+
+  architectures = ["arm64"]
+  runtime       = "provided.al2"
+  memory_size   = "512"
+  timeout       = 300
+}
+
+resource "aws_lambda_event_source_mapping" "jaeger_dependencies_lambda" {
+  event_source_arn                   = aws_dynamodb_table.jaeger_spans.stream_arn
+  function_name                      = aws_lambda_function.jaeger_dependencies.arn
+  starting_position                  = "LATEST"
+  batch_size                         = 10000
+  maximum_batching_window_in_seconds = 300
+}
 ```
 
 ### Install the plugin
