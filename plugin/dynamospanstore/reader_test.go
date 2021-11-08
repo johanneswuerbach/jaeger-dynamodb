@@ -341,6 +341,7 @@ func TestFindTracesWithLimit(t *testing.T) {
 	})
 	assert.NoError(err)
 	assert.Len(tracesSubset, 1)
+	assert.Equal(tracesSubset[0].Spans[0].TraceID.String(), "0000000000000011")
 }
 
 func parseTime(t *testing.T, timeStr string) time.Time {
