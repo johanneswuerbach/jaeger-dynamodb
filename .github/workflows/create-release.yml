@@ -29,6 +29,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: ./dependency-lambda/dependency-lambda.zip
+          generate_release_notes: true
 
   build-and-push-image:
     runs-on: ubuntu-latest
