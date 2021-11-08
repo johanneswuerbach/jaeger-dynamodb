@@ -333,6 +333,7 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 		ProjectionExpression:      expr.Projection(),
 		TableName:                 &s.spansTable,
 		IndexName:                 aws.String("ServiceNameIndex"),
+		ScanIndexForward:          aws.Bool(false),
 	})
 
 	// TODO Make this more efficient
