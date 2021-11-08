@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.10.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.6.0
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.4.0
-	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.2.6
+	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.3.0
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.7.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/hashicorp/go-hclog v0.16.2
