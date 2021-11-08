@@ -17,7 +17,7 @@ RUN git clone --depth=1 --single-branch --branch=v1.27.0 https://github.com/jaeg
 WORKDIR /jaeger
 COPY --from=build /src/dynamodb-plugin /go/bin
 
-FROM jaegertracing/all-in-one:1.27.0 AS jaeger-test
+FROM jaegertracing/all-in-one:1.28.0 AS jaeger-test
 COPY --from=build /src/dynamodb-plugin /go/bin
 
 FROM alpine:3.14.2
