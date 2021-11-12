@@ -39,13 +39,14 @@ func createDynamoDBSvc(assert *assert.Assertions, ctx context.Context) *dynamodb
 	})
 	assert.NoError(err)
 
-	return dynamodb.NewFromConfig(cfg)
-}
+	svc := dynamodb.NewFromConfig(cfg)
 
-func createTestTables(assert *assert.Assertions, ctx context.Context, svc *dynamodb.Client) {
+	assert.NoError(setup.PollUntilReady(ctx, svc))
 	assert.NoError(setup.RecreateDependencyStoreTables(ctx, svc, &setup.SetupDependencyOptions{
 		DependenciesTable: dependenciesTable,
 	}))
+
+	return svc
 }
 
 func TestGetDependencies(t *testing.T) {
@@ -66,8 +67,6 @@ func TestGetDependencies(t *testing.T) {
 
 	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, dependenciesTable)
-
-	createTestTables(assert, ctx, svc)
 
 	g, writeCtx := errgroup.WithContext(context.Background())
 	g.Go(func() error {

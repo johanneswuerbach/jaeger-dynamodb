@@ -43,7 +43,16 @@ func createDynamoDBSvc(assert *assert.Assertions, ctx context.Context) *dynamodb
 	})
 	assert.NoError(err)
 
-	return dynamodb.NewFromConfig(cfg)
+	svc := dynamodb.NewFromConfig(cfg)
+
+	assert.NoError(setup.PollUntilReady(ctx, svc))
+	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
+		SpansTable:      spansTable,
+		ServicesTable:   servicesTable,
+		OperationsTable: operationsTable,
+	}))
+
+	return svc
 }
 
 func TestGetServices(t *testing.T) {
@@ -66,12 +75,6 @@ func TestGetServices(t *testing.T) {
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
 	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 	assert.NoError(err)
-
-	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
-		SpansTable:      spansTable,
-		ServicesTable:   servicesTable,
-		OperationsTable: operationsTable,
-	}))
 
 	var span model.Span
 	assert.NoError(jsonpb.Unmarshal(strings.NewReader(`{
@@ -148,12 +151,6 @@ func TestGetOperations(t *testing.T) {
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
 	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 	assert.NoError(err)
-
-	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
-		SpansTable:      spansTable,
-		ServicesTable:   servicesTable,
-		OperationsTable: operationsTable,
-	}))
 
 	var span model.Span
 	assert.NoError(jsonpb.Unmarshal(strings.NewReader(spanWithOperation), &span))
@@ -247,12 +244,6 @@ func TestFindTraces(t *testing.T) {
 	svc := createDynamoDBSvc(assert, ctx)
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
 
-	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
-		SpansTable:      spansTable,
-		ServicesTable:   servicesTable,
-		OperationsTable: operationsTable,
-	}))
-
 	startTimeMax := parseTime(t, "2017-01-26T16:50:31.639875Z")
 	startTimeMin := parseTime(t, "2017-01-26T16:40:31.639875Z")
 
@@ -308,12 +299,6 @@ func TestFindTracesWithLimit(t *testing.T) {
 	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
 	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
 	assert.NoError(err)
-
-	assert.NoError(setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
-		SpansTable:      spansTable,
-		ServicesTable:   servicesTable,
-		OperationsTable: operationsTable,
-	}))
 
 	startTimeMax := parseTime(t, "2017-01-26T16:50:31.639875Z")
 	startTimeMin := parseTime(t, "2017-01-26T16:40:31.639875Z")

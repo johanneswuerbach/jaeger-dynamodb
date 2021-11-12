@@ -89,6 +89,10 @@ func main() {
 	logger.Debug("plugin configured")
 
 	if viper.GetBool("create-tables") {
+		if err := setup.PollUntilReady(ctx, svc); err != nil {
+			log.Fatalf("unable to poll until ready, %v", err)
+		}
+
 		logger.Debug("Creating tables.")
 		if err := setup.RecreateSpanStoreTables(ctx, svc, &setup.SetupSpanOptions{
 			SpansTable:      spansTable,
