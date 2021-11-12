@@ -156,6 +156,19 @@ type SetupSpanOptions struct {
 	OperationsTable string
 }
 
+func PollUntilReady(ctx context.Context, svc *dynamodb.Client) error {
+	var err error
+	for i := 0; i < 30; i++ {
+		_, err = svc.ListTables(ctx, &dynamodb.ListTablesInput{})
+		if err == nil {
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	return err
+}
+
 func RecreateSpanStoreTables(ctx context.Context, svc *dynamodb.Client, options *SetupSpanOptions) error {
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
