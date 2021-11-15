@@ -20,7 +20,7 @@ COPY --from=build /src/dynamodb-plugin /go/bin
 FROM jaegertracing/all-in-one:1.28.0 AS jaeger-test
 COPY --from=build /src/dynamodb-plugin /go/bin
 
-FROM alpine:3.14.2
+FROM alpine:3.14.3
 
 COPY --from=build /src/dynamodb-plugin /jaeger-dynamodb
 
