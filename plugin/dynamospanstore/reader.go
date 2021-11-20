@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -275,98 +276,142 @@ type TraceIDResult struct {
 	TraceID string
 }
 
+type TraceIDSet struct {
+	m map[string]interface{}
+	sync.RWMutex
+}
+
+func NewTraceIDSet() *TraceIDSet {
+	return &TraceIDSet{
+		m: map[string]interface{}{},
+	}
+}
+
+func (s *TraceIDSet) Add(item string) {
+	s.Lock()
+	defer s.Unlock()
+
+	s.m[item] = struct{}{}
+}
+
+func (s *TraceIDSet) Len() int {
+	s.RLock()
+	defer s.RUnlock()
+
+	return len(s.m)
+}
+
+func (s *TraceIDSet) Items() []string {
+	s.RLock()
+	defer s.RUnlock()
+
+	traceIDs := []string{}
+	for k := range s.m {
+		traceIDs = append(traceIDs, k)
+	}
+
+	return traceIDs
+}
+
 func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryParameters) ([]*model.Trace, error) {
 	s.logger.Trace("FindTraces", query)
 	span, _ := opentracing.StartSpanFromContext(ctx, "FindTraces")
 	defer span.Finish()
 
-	builder := expression.NewBuilder()
-
 	if query.ServiceName == "" {
 		return nil, fmt.Errorf("querying without service name is not supported yet")
 	}
 
-	builder = builder.WithKeyCondition(expression.KeyEqual(
-		expression.Key("ServiceName"), expression.Value(query.ServiceName)).And(expression.KeyBetween(
-		expression.Key("StartTime"),
-		expression.Value(query.StartTimeMin.UnixNano()),
-		expression.Value(query.StartTimeMax.UnixNano()))))
+	scanGroup, scanCtx := errgroup.WithContext(ctx)
+	traceIDSet := NewTraceIDSet()
+	for i := 0; i < serviceNameBuckets; i++ {
+		serviceNameBucket := i
+		// Fanout against all span buckets to find matching spans
+		scanGroup.Go(func() error {
+			builder := expression.NewBuilder()
+			builder = builder.WithKeyCondition(expression.KeyEqual(
+				expression.Key("ServiceNameBucket"), expression.Value(toServiceNameBucket(query.ServiceName, serviceNameBucket))).And(expression.KeyBetween(
+				expression.Key("StartTime"),
+				expression.Value(query.StartTimeMin.UnixNano()),
+				expression.Value(query.StartTimeMax.UnixNano()))))
 
-	expressions := []expression.ConditionBuilder{}
+			expressions := []expression.ConditionBuilder{}
 
-	if query.OperationName != "" {
-		expressions = append(expressions, expression.Name("OperationName").Equal(expression.Value(query.OperationName)))
-	}
-
-	if query.DurationMin != 0 {
-		expressions = append(expressions, expression.Name("Duration").GreaterThanEqual(expression.Value(query.DurationMin.Nanoseconds())))
-	}
-
-	if query.DurationMax != 0 {
-		expressions = append(expressions, expression.Name("Duration").LessThanEqual(expression.Value(query.DurationMax.Nanoseconds())))
-	}
-
-	for key, value := range query.Tags {
-		expressions = append(expressions, expression.Name(fmt.Sprintf("SearchableTags.%s", key)).Equal(expression.Value(value)))
-	}
-
-	if len(expressions) > 0 {
-		if len(expressions) == 1 {
-			builder = builder.WithFilter(expressions[0])
-		} else {
-			builder = builder.WithFilter(expression.And(expressions[0], expressions[1], expressions[2:]...))
-		}
-	}
-
-	builder = builder.WithProjection(expression.NamesList(expression.Name("TraceID")))
-
-	expr, err := builder.Build()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build query expression, %v", err)
-	}
-
-	paginator := dynamodb.NewQueryPaginator(s.svc, &dynamodb.QueryInput{
-		KeyConditionExpression:    expr.KeyCondition(),
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-		FilterExpression:          expr.Filter(),
-		ProjectionExpression:      expr.Projection(),
-		TableName:                 &s.spansTable,
-		IndexName:                 aws.String("ServiceNameIndex"),
-		ScanIndexForward:          aws.Bool(false),
-	})
-
-	// TODO Make this more efficient
-	traceIDMap := make(map[string]struct{})
-	for len(traceIDMap) < query.NumTraces && paginator.HasMorePages() {
-		output, err := paginator.NextPage(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to query page, %v", err)
-		}
-
-		var traceIDResults []TraceIDResult
-		if err := attributevalue.UnmarshalListOfMaps(output.Items, &traceIDResults); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal items, %v", err)
-		}
-		for _, item := range traceIDResults {
-			if len(traceIDMap) >= query.NumTraces {
-				break
+			if query.OperationName != "" {
+				expressions = append(expressions, expression.Name("OperationName").Equal(expression.Value(query.OperationName)))
 			}
-			traceIDMap[item.TraceID] = struct{}{}
-		}
+
+			if query.DurationMin != 0 {
+				expressions = append(expressions, expression.Name("Duration").GreaterThanEqual(expression.Value(query.DurationMin.Nanoseconds())))
+			}
+
+			if query.DurationMax != 0 {
+				expressions = append(expressions, expression.Name("Duration").LessThanEqual(expression.Value(query.DurationMax.Nanoseconds())))
+			}
+
+			for key, value := range query.Tags {
+				expressions = append(expressions, expression.Name(fmt.Sprintf("SearchableTags.%s", key)).Equal(expression.Value(value)))
+			}
+
+			if len(expressions) > 0 {
+				if len(expressions) == 1 {
+					builder = builder.WithFilter(expressions[0])
+				} else {
+					builder = builder.WithFilter(expression.And(expressions[0], expressions[1], expressions[2:]...))
+				}
+			}
+
+			builder = builder.WithProjection(expression.NamesList(expression.Name("TraceID")))
+
+			expr, err := builder.Build()
+			if err != nil {
+				return fmt.Errorf("failed to build query expression, %v", err)
+			}
+
+			paginator := dynamodb.NewQueryPaginator(s.svc, &dynamodb.QueryInput{
+				KeyConditionExpression:    expr.KeyCondition(),
+				ExpressionAttributeNames:  expr.Names(),
+				ExpressionAttributeValues: expr.Values(),
+				FilterExpression:          expr.Filter(),
+				ProjectionExpression:      expr.Projection(),
+				TableName:                 &s.spansTable,
+				IndexName:                 aws.String("SpanSearchIndex"),
+				ScanIndexForward:          aws.Bool(false),
+			})
+
+			for traceIDSet.Len() < query.NumTraces && paginator.HasMorePages() {
+				output, err := paginator.NextPage(scanCtx)
+				if err != nil {
+					return fmt.Errorf("failed to query page, %v", err)
+				}
+
+				var traceIDResults []TraceIDResult
+				if err := attributevalue.UnmarshalListOfMaps(output.Items, &traceIDResults); err != nil {
+					return fmt.Errorf("failed to unmarshal items, %v", err)
+				}
+				for _, item := range traceIDResults {
+					if traceIDSet.Len() >= query.NumTraces {
+						break
+					}
+					traceIDSet.Add(item.TraceID)
+				}
+			}
+
+			return nil
+		})
+	}
+	if err := scanGroup.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to query span search index, %v", err)
 	}
 
-	traceIDs := []string{}
-	for k := range traceIDMap {
-		traceIDs = append(traceIDs, k)
-	}
-
+	traceIDs := traceIDSet.Items()
 	tracesChan := make(chan *model.Trace, len(traceIDs))
-	g, ctx := errgroup.WithContext(ctx)
+	getGroup, getCtx := errgroup.WithContext(ctx)
 	for _, traceID := range traceIDs {
 		traceID := traceID
-		g.Go(func() error {
-			trace, err := s.getTraceByID(ctx, traceID)
+		// TODO Might be better to use BatchGetItem here
+		getGroup.Go(func() error {
+			trace, err := s.getTraceByID(getCtx, traceID)
 			if err != nil {
 				return fmt.Errorf("failed to fetch trace %s, %v", traceID, err)
 			}
@@ -374,7 +419,7 @@ func (s *Reader) FindTraces(ctx context.Context, query *spanstore.TraceQueryPara
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
+	if err := getGroup.Wait(); err != nil {
 		return nil, fmt.Errorf("failed to fetch traces, %v", err)
 	}
 	close(tracesChan)
