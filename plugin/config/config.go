@@ -1,7 +1,8 @@
 package config
 
 type DynamoDBConfiguration struct {
-	Endpoint string
+	Endpoint       string
+	RecreateTables bool
 }
 
 type Configuration struct {

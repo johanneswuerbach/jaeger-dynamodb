@@ -88,7 +88,7 @@ func main() {
 
 	logger.Debug("plugin configured")
 
-	if viper.GetBool("create-tables") {
+	if viper.GetBool("create-tables") || configuration.DynamoDB.RecreateTables {
 		if err := setup.PollUntilReady(ctx, svc); err != nil {
 			log.Fatalf("unable to poll until ready, %v", err)
 		}

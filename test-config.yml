@@ -1,2 +1,3 @@
 dynamodb:
   endpoint: http://dynamodb:8000
+  recreateTables: true

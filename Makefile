@@ -45,8 +45,7 @@ test: start-dynamodb ## Run jaeger plugin tests
 
 test-jaeger-grpc-integration: start-dynamodb ## Run jaeger integration tests for grpc plugins
 	docker compose build --build-arg GOARCH=$(GOARCH) test-jaeger-grpc-integration
-	docker compose run --rm test-jaeger-grpc-integration sh -c '$$PLUGIN_BINARY_PATH --config $$PLUGIN_CONFIG_PATH --create-tables=1 --only-create-tables=true'
-	docker compose run --rm test-jaeger-grpc-integration go test -run 'TestGRPCStorage/FindTraces' -tags=grpc_storage_integration -v -race ./plugin/storage/integration/...
+	docker compose run --rm test-jaeger-grpc-integration go test -run 'TestGRPCStorage/(GetServices|GetOperations|GetTrace|FindTraces|GetDependencies)' -tags=grpc_storage_integration -v -race ./plugin/storage/integration/...
 
 lint: ## Lint the code
 	docker run --rm -v $(PWD):/app -w /app golangci/golangci-lint:v1.42.1 golangci-lint run -v
