@@ -87,13 +87,13 @@ resource "aws_dynamodb_table" "jaeger_spans" {
   }
 
   attribute {
-    name = "SpanBucket"
-    type = "N"
+    name = "ServiceNameBucket"
+    type = "S"
   }
 
   attribute {
-    name = "ServiceNameAndStartTime"
-    type = "S"
+    name = "StartTime"
+    type = "N"
   }
 
   ttl {
@@ -114,8 +114,8 @@ resource "aws_dynamodb_table" "jaeger_spans" {
 
   global_secondary_index {
     name               = "SpanSearchIndex"
-    hash_key           = "SpanBucket"
-    range_key          = "ServiceNameAndStartTime"
+    hash_key           = "ServiceNameBucket"
+    range_key          = "StartTime"
     projection_type    = "INCLUDE"
     non_key_attributes = ["OperationName", "Duration", "SearchableTags"]
   }
