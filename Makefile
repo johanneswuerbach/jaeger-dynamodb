@@ -52,3 +52,6 @@ lint: ## Lint the code
 
 build-dependency-lambda: ## Build the dependency lambda
 	make -C ./dependency-lambda build
+
+test-dependency-lambda: ## Test the dependency lambda
+	make -C ./dependency-lambda test
