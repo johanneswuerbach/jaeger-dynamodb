@@ -326,7 +326,48 @@ func TestFindTracesWithLimit(t *testing.T) {
 	})
 	assert.NoError(err)
 	assert.Len(tracesSubset, 1)
-	assert.Equal(tracesSubset[0].Spans[0].TraceID.String(), "0000000000000011")
+}
+
+func TestFindTracesWithOperatioName(t *testing.T) {
+	assert := assert.New(t)
+
+	logLevel := os.Getenv("GRPC_STORAGE_PLUGIN_LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = hclog.Warn.String()
+	}
+
+	logger := hclog.New(&hclog.LoggerOptions{
+		Level:      hclog.LevelFromString(logLevel),
+		Name:       loggerName,
+		JSONFormat: true,
+	})
+
+	ctx := context.TODO()
+
+	svc := createDynamoDBSvc(assert, ctx)
+	reader := NewReader(logger, svc, spansTable, servicesTable, operationsTable)
+	writer, err := NewWriter(logger, svc, spansTable, servicesTable, operationsTable)
+	assert.NoError(err)
+
+	startTimeMax := parseTime(t, "2017-01-26T16:50:31.639875Z")
+	startTimeMin := parseTime(t, "2017-01-26T16:40:31.639875Z")
+
+	var span model.Span
+	assert.NoError(jsonpb.Unmarshal(strings.NewReader(inputWithTraceTag), &span))
+	assert.NoError(writer.WriteSpan(ctx, &span))
+	assert.NoError(jsonpb.Unmarshal(strings.NewReader(spanWithOperation), &span))
+	assert.NoError(writer.WriteSpan(ctx, &span))
+
+	traces, err := reader.FindTraces(ctx, &spanstore.TraceQueryParameters{
+		ServiceName:   "query12-service",
+		StartTimeMin:  startTimeMin,
+		StartTimeMax:  startTimeMax,
+		NumTraces:     2,
+		OperationName: "example-operation-1",
+	})
+	assert.NoError(err)
+	assert.Len(traces, 1)
+	assert.Equal(traces[0].GetSpans()[0].TraceID.String(), "0000000000000011")
 }
 
 func parseTime(t *testing.T, timeStr string) time.Time {

@@ -3,6 +3,7 @@ package dynamospanstore
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -19,6 +20,7 @@ const (
 	expiresAfter        = 7 * 24 * time.Hour
 	serviceCacheSize    = 100
 	operationsCacheSize = 300
+	serviceNameBuckets  = 10
 )
 
 var (
@@ -94,6 +96,9 @@ type SpanItem struct {
 	ProcessID      string
 	Warnings       []string
 	ExpiresAfter   int64
+	// Used for querying with a sharded GSI
+	// https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-indexes-gsi-sharding.html
+	ServiceNameBucket string
 	// XXX_NoUnkeyedLiteral struct{}
 	// XXX_unrecognized     []byte
 	// XXX_sizecache        int32
@@ -103,6 +108,10 @@ func itemExpiresAfter() int64 {
 	return time.Now().Add(expiresAfter).UnixMilli() / 1000
 }
 
+func toServiceNameBucket(serviceName string, bucket int) string {
+	return fmt.Sprintf("%s.%d", serviceName, bucket)
+}
+
 func NewSpanItemFromSpan(span *model.Span) *SpanItem {
 	searchableTags := append([]model.KeyValue{}, span.Tags...)
 	searchableTags = append(searchableTags, span.Process.Tags...)
@@ -110,22 +119,26 @@ func NewSpanItemFromSpan(span *model.Span) *SpanItem {
 		searchableTags = append(searchableTags, log.Fields...)
 	}
 
+	s1 := rand.NewSource(time.Now().UnixNano())
+	r1 := rand.New(s1)
+
 	return &SpanItem{
-		TraceID:        span.TraceID.String(),
-		SpanID:         span.SpanID.String(),
-		OperationName:  span.OperationName,
-		References:     NewSpanItemReferencesFromReferences(span.References),
-		Flags:          span.Flags,
-		StartTime:      span.StartTime.UnixNano(),
-		Duration:       span.Duration.Nanoseconds(),
-		Tags:           span.Tags,
-		SearchableTags: kvToMap(searchableTags),
-		Logs:           NewSpanItemLogsFromLogs(span.Logs),
-		Process:        NewSpanItemProcessFromProcess(span.Process),
-		ServiceName:    span.Process.ServiceName,
-		ProcessID:      span.ProcessID,
-		Warnings:       span.Warnings,
-		ExpiresAfter:   itemExpiresAfter(),
+		TraceID:           span.TraceID.String(),
+		SpanID:            span.SpanID.String(),
+		OperationName:     span.OperationName,
+		References:        NewSpanItemReferencesFromReferences(span.References),
+		Flags:             span.Flags,
+		StartTime:         span.StartTime.UnixNano(),
+		Duration:          span.Duration.Nanoseconds(),
+		Tags:              span.Tags,
+		SearchableTags:    kvToMap(searchableTags),
+		Logs:              NewSpanItemLogsFromLogs(span.Logs),
+		Process:           NewSpanItemProcessFromProcess(span.Process),
+		ServiceName:       span.Process.ServiceName,
+		ProcessID:         span.ProcessID,
+		Warnings:          span.Warnings,
+		ExpiresAfter:      itemExpiresAfter(),
+		ServiceNameBucket: toServiceNameBucket(span.Process.ServiceName, r1.Intn(serviceNameBuckets)),
 	}
 }
 

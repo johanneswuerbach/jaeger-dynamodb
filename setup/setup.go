@@ -63,7 +63,7 @@ func ensureSpansTable(ctx context.Context, svc *dynamodb.Client, tableName strin
 		AttributeDefinitions: []types.AttributeDefinition{
 			{AttributeName: &traceIDKey, AttributeType: types.ScalarAttributeTypeS},
 			{AttributeName: &spanIDKey, AttributeType: types.ScalarAttributeTypeS},
-			{AttributeName: aws.String("ServiceName"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: aws.String("ServiceNameBucket"), AttributeType: types.ScalarAttributeTypeS},
 			{AttributeName: aws.String("StartTime"), AttributeType: types.ScalarAttributeTypeN},
 		},
 		BillingMode: types.BillingModePayPerRequest,
@@ -74,10 +74,10 @@ func ensureSpansTable(ctx context.Context, svc *dynamodb.Client, tableName strin
 		},
 		GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
 			{
-				IndexName: aws.String("ServiceNameIndex"),
+				IndexName: aws.String("SpanSearchIndex"),
 				KeySchema: []types.KeySchemaElement{
 					{
-						AttributeName: aws.String("ServiceName"),
+						AttributeName: aws.String("ServiceNameBucket"),
 						KeyType:       types.KeyTypeHash,
 					},
 					{
