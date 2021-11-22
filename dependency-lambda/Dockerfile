@@ -1,4 +1,4 @@
-FROM golang:1.17.2-alpine AS base
+FROM golang:1.17.3-alpine AS base
 
 ARG GOARCH=arm64
 
