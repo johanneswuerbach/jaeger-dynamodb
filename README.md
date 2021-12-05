@@ -1,6 +1,11 @@
 # jaeger-dynamodb
 
+__This project was stopped and is no longer maintained. Read more on the reasoning [here](https://github.com/johanneswuerbach/jaeger-dynamodb/issues/55).__
+
+---
+
 jaeger-dynamodb is gRPC storage plugin for [Jaeger](https://github.com/jaegertracing/jaeger), which uses [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) to store spans.
+
 
 ## Usage
 
